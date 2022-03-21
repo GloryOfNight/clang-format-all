@@ -21,7 +21,7 @@ jobs:
       run: sudo apt install libtbb-dev
     
     - name: CMake Configure
-      run: cmake -S . -B build/ -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DCMAKE_C_COMPILER="/usr/bin/gcc" -DCMAKE_CXX_COMPILER="/usr/bin/g++"
+      run: cmake -S . -B build/ -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DCMAKE_C_COMPILER="/usr/bin/clang" -DCMAKE_CXX_COMPILER="/usr/bin/clang++"
 
     - name: CMake Build
       shell: bash

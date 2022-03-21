@@ -1,4 +1,4 @@
-name: C/C++ CI
+name: Ubuntu
 
 on:
   push:
@@ -11,7 +11,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
-    - name: configure
+    - name: Install tbb
+      run: sudo apt install libtbb-dev
+    - name: Configure
       run: cmake -S . -B build -DCMAKE_BUILD_CONFIG=Release
-    - name: build
+    - name: Build
       run: cmake --build build

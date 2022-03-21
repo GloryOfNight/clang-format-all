@@ -16,16 +16,14 @@ std::atomic<size_t> currentFiles = 0;
 enum
 {
 	OK = 0,
-	LLVM_NOT_FOUND = 1,
-	CLANG_FORMAT_EXE_NOT_FOUND = 2,
-	SRC_DIR_NOT_FOUND = 3
+	CLANG_FORMAT_EXE_NOT_FOUND = 1,
+	SRC_DIR_NOT_FOUND = 2
 } error_codes;
 
 enum
 {
-	VERBOSE = 0,
-	WARNING = 1,
-	ERROR = 2
+	DISPLAY = 0,
+	ERROR = 1
 } log_level;
 
 void handleAbort(int sig);
@@ -40,25 +38,22 @@ int main(int argc, char* argv[])
 	std::signal(SIGINT, handleAbort);
 	std::signal(SIGTERM, handleAbort);
 
-	const auto LLVMdir = std::filesystem::path(std::getenv("LLVM"));
-	if (!std::filesystem::exists(LLVMdir))
-	{
-		log(ERROR, "LLVM Environment variable not found, could not proceed.");
-		return LLVM_NOT_FOUND;
-	}
+	const char* LLVMdir = std::getenv("LLVM");
+	if (LLVMdir == nullptr)
+		LLVMdir = "";
 
 #if _WIN32
 	const char* exeStem = ".exe";
 #else
 	const char* exeStem = "";
 #endif
-	const auto clangFormatExecutable = std::filesystem::path(LLVMdir.generic_string() + "/bin/clang-format" + exeStem);
-	if (!std::filesystem::exists(clangFormatExecutable))
+	const auto clangFormatExecutable = std::filesystem::path(LLVMdir + std::string("/bin/clang-format") + exeStem);
+	if (!std::filesystem::exists(clangFormatExecutable) && std::filesystem::is_regular_file(clangFormatExecutable))
 	{
 		log(ERROR, "Clang-format executable not found, could not proceed.");
 		return CLANG_FORMAT_EXE_NOT_FOUND;
 	}
-	log(VERBOSE, "Using clang-format: %s", clangFormatExecutable.generic_string().data());
+	log(DISPLAY, "Using clang-format: %s", clangFormatExecutable.generic_string().data());
 
 	auto thread = std::thread(doJob, clangFormatExecutable, std::filesystem::current_path());
 
@@ -89,11 +84,8 @@ void log(int level, const char* log, ...)
 	va_start(list, log);
 	switch (level)
 	{
-	case VERBOSE:
+	case DISPLAY:
 		std::vfprintf(stdout, logNewLine.data(), list);
-		break;
-	case WARNING:
-		std::vfprintf(stderr, logNewLine.data(), list);
 		break;
 	case ERROR:
 		std::vfprintf(stderr, logNewLine.data(), list);

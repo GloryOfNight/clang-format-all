@@ -1,19 +1,25 @@
 name: Ubuntu
-
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
   pull_request:
-    branches: [ main ]
+    branches:
+      - main
+
+env:
+  # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
+  BUILD_TYPE: Release
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
-    - name: Install tbb
-      run: sudo apt install libtbb-dev
-    - name: Configure
-      run: cmake -S . -B build -DCMAKE_BUILD_CONFIG=Release
-    - name: Build
-      run: cmake --build build
+
+    - name: CMake Configure
+      run: cmake -S . -B build/ -DCMAKE_BUILD_TYPE=$BUILD_TYPE
+
+    - name: CMake Build
+      shell: bash
+      run: cmake --build build/ --config $BUILD_TYPE

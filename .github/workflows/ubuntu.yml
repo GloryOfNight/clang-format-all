@@ -16,6 +16,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
+    
+    - name: install gcc
+      run: sudo apt install gcc-10
 
     - name: CMake Configure
       run: cmake -S . -B build/ -DCMAKE_BUILD_TYPE=$BUILD_TYPE

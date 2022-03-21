@@ -1,0 +1,41 @@
+{
+  "version": 2,
+  "configurePresets": [
+    {
+      "name": "default-x64",
+      "displayName": "default-x64",
+      "description": "Default preset for project",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build",
+      "architecture": {
+        "value": "x64",
+        "strategy": "external"
+      },
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug" }
+    },
+    {
+      "name": "default-x64-release",
+      "inherits": "default-x64",
+      "cacheVariables": {"CMAKE_BUILD_TYPE": "Release"}
+    },
+    {
+      "name": "Visual Studio 2019",
+      "displayName": "Visual Studio 16 2019",
+      "description": "Use Visual Studio 16 2019 generator",
+      "inherits": "default-x64",
+      "generator": "Visual Studio 16 2019"
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "Debug VS2019",
+      "configuration": "Debug",
+      "configurePreset": "Visual Studio 2019"
+    },
+    {
+      "name": "Release VS2019",
+      "inherits": "Debug VS2019",
+      "configuration": "Release"
+    }
+  ]
+}

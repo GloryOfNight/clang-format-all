@@ -1,3 +1,4 @@
+# CMake
 CMakeLists.txt.user
 CMakeCache.txt
 CMakeFiles
@@ -9,3 +10,12 @@ install_manifest.txt
 compile_commands.json
 CTestTestfile.cmake
 _deps
+
+# IDE dirs
+.vs/*
+.vscode/*
+.idea/*
+
+# Build dirs
+build/*
+out/*

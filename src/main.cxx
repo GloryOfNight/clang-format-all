@@ -1,9 +1,17 @@
 #include <array>
+#include <atomic>
+#include <csignal>
 #include <cstdarg>
 #include <execution>
 #include <filesystem>
+#include <iostream>
 #include <string>
+#include <thread>
 #include <vector>
+
+std::atomic<bool> abortJob = false;
+std::atomic<size_t> totalFiles = 0;
+std::atomic<size_t> currentFiles = 0;
 
 enum
 {
@@ -20,12 +28,18 @@ enum
 	ERROR = 2
 } log_level;
 
+void handleAbort(int sig);
+
 void log(int level, const char* log, ...);
 
 int doJob(const std::filesystem::path& formatExecutable, const std::filesystem::path& dir);
 
 int main(int argc, char* argv[])
 {
+	std::signal(SIGABRT, handleAbort);
+	std::signal(SIGINT, handleAbort);
+	std::signal(SIGTERM, handleAbort);
+
 	const auto LLVMdir = std::filesystem::path(std::getenv("LLVM"));
 	if (!std::filesystem::exists(LLVMdir))
 	{
@@ -46,7 +60,25 @@ int main(int argc, char* argv[])
 	}
 	log(VERBOSE, "Using clang-format: %s", clangFormatExecutable.generic_string().data());
 
-	return doJob(clangFormatExecutable, std::filesystem::current_path());
+	auto thread = std::thread(doJob, clangFormatExecutable, std::filesystem::current_path());
+
+	while (!abortJob)
+	{
+		const size_t copyTotalFiles = totalFiles;
+		const size_t copyCurrentFiles = currentFiles;
+		std::cout << "Formatted files: " << copyCurrentFiles << " / " << copyTotalFiles << "\r" << std::flush;
+		std::this_thread::sleep_for(std::chrono::milliseconds(100));
+	}
+	std::cout << "Formatted files: " << currentFiles << " / " << totalFiles << std::endl;
+
+	thread.join();
+	return OK;
+}
+
+void handleAbort(int sig)
+{
+	abortJob = true;
+	log(ERROR, "\nABORT RECEIVED\n");
 }
 
 void log(int level, const char* log, ...)
@@ -80,10 +112,11 @@ int doJob(const std::filesystem::path& formatExecutable, const std::filesystem::
 
 	for (const auto& entry : std::filesystem::recursive_directory_iterator(dir))
 	{
+		if (abortJob)
+			break;
+
 		if (!entry.is_regular_file())
-		{
 			continue;
-		}
 
 		const auto filePath = entry.path();
 		if (std::find(extensions.begin(), extensions.end(), filePath.filename().extension().generic_string()) != extensions.end())
@@ -91,18 +124,21 @@ int doJob(const std::filesystem::path& formatExecutable, const std::filesystem::
 			files.push_back(filePath);
 		}
 	}
+	totalFiles = files.size();
 
 	const auto lambda = [&formatExecutable](const std::filesystem::path& path)
 	{
-		const auto command = std::string('"' + formatExecutable.generic_string() + '"' + " -i " + path.generic_string());
-		const int res = std::system(command.data());
-		if (res == OK)
-			log(VERBOSE, "Format complete: %s", path.generic_string().data());
-		else
-			log(ERROR, "Format failed with code: %i", res);
+		if (!abortJob)
+		{
+			const auto command = std::string('"' + formatExecutable.generic_string() + '"' + " -i " + path.generic_string());
+			const int res = std::system(command.data());
+			++currentFiles;
+		}
 	};
 
-	std::for_each(std::execution::par, files.begin(), files.end(), lambda);
+	if (!abortJob)
+		std::for_each(std::execution::par, files.begin(), files.end(), lambda);
 
+	abortJob = true;
 	return OK;
 }

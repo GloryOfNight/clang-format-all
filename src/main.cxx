@@ -126,16 +126,13 @@ void log(int level, const char* log, ...)
 	switch (level)
 	{
 	case VERBOSE:
-		std::vfprintf(stdout, log, list);
-		std::fprintf(stderr, "\n");
+		std::vfprintf(stdout, (std::string(log) + '\n').data(), list);
 		break;
 	case DISPLAY:
-		std::vfprintf(stdout, log, list);
-		std::fprintf(stderr, "\n");
+		std::vfprintf(stdout, (std::string(log) + '\n').data(), list);
 		break;
 	case ERROR:
-		std::vfprintf(stderr, log, list);
-		std::fprintf(stderr, "\n");
+		std::vfprintf(stderr, (std::string(log) + '\n').data(), list);
 		break;
 	default:;
 	}

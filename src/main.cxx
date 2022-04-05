@@ -172,9 +172,21 @@ int doJob(const std::filesystem::path& formatExecutable, const std::filesystem::
 
 		for (auto igDir : ignorePaths)
 		{
-			if ((std::filesystem::is_directory(igDir) && filePath.root_path() == igDir) || (std::filesystem::is_regular_file(igDir) && igDir == filePath))
+			if (std::filesystem::is_directory(igDir))
+			{
+				const auto igDirStr = igDir.generic_string();
+				auto dirStr = filePath.generic_string();
+				if (const auto pos = dirStr.find_first_of('/', igDirStr.size() - 1); pos != std::string::npos)
+					dirStr.erase(pos);
+				isIgnored = dirStr == igDirStr;
+			}
+			else if (std::filesystem::is_regular_file(igDir) && igDir == filePath)
 			{
 				isIgnored = true;
+			}
+
+			if (isIgnored)
+			{
 				log(VERBOSE, "Ignoring file: %s", filePath.generic_string().data());
 				break;
 			}

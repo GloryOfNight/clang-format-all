@@ -15,7 +15,7 @@ Demo of me formatting Unreal Engine 4.26.2 `Engine/Source` folder and also provi
 - `--verbose` enable a little bit more detail logging
 - `-S` optional, specify source directory to reformat, if not prodived program will use current working directory as source
 - `-E` optional, specify clang-format executable, if not provided program will try to find it
-- `-I` optional, ignore folders list in releative paths to `-S`
+- `-I` optional, ignore folders or files in releative paths to `-S`
 
 example command (git bash, windows):
 

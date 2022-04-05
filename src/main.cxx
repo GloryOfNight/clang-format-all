@@ -9,13 +9,15 @@
 #include <thread>
 #include <vector>
 
+constexpr std::array<const char*, 6> extensions = {".cpp", ".cxx", ".c", ".h", ".hxx", ".hpp"};
+
 std::atomic<bool> abortJob = false;
 std::atomic<size_t> totalFiles = 0;
 std::atomic<size_t> currentFiles = 0;
 
 std::filesystem::path sourceDir;
 std::filesystem::path formatExecPath;
-std::vector<std::filesystem::path> ignoreDirs;
+std::vector<std::filesystem::path> ignorePaths;
 
 enum
 {
@@ -89,18 +91,26 @@ int main(int argc, char* argv[])
 	}
 	log(DISPLAY, "Using clang-format: %s", formatExecPath.generic_string().data());
 	log(DISPLAY, "Formatting directory: %s", sourceDir.generic_string().data());
-	for (const auto dir : ignoreDirs)
+	for (auto& igPath : ignorePaths)
 	{
-		log(DISPLAY, "Ignoring: %s", dir.generic_string().data());
+		igPath = sourceDir.generic_string() + "/" + igPath.generic_string();
+		if (!std::filesystem::exists(igPath))
+		{
+			log(ERROR, "Ignore path DO NOT exist: %s", igPath.generic_string().data());
+		}
+		else 
+		{
+			log(DISPLAY, "Ignoring: %s", igPath.generic_string().data());
+		}
 	}
 
 	log(DISPLAY, "Starting job thread. . .");
-	auto thread = std::thread(doJob, formatExecPath, sourceDir, std::move(ignoreDirs));
+	auto thread = std::thread(doJob, formatExecPath, sourceDir, std::move(ignorePaths));
 
 	while (!abortJob)
 	{
 		std::cout << "Formatted files: " << currentFiles << " / " << totalFiles << "\r" << std::flush;
-		std::this_thread::sleep_for(std::chrono::milliseconds(100));
+		std::this_thread::sleep_for(std::chrono::milliseconds(150));
 	}
 	std::cout << "Formatted files: " << currentFiles << " / " << totalFiles << std::endl;
 
@@ -139,12 +149,10 @@ void log(int level, const char* log, ...)
 	va_end(list);
 }
 
-int doJob(const std::filesystem::path& formatExecutable, const std::filesystem::path& dir, std::vector<std::filesystem::path>&& ignoreDirs)
+int doJob(const std::filesystem::path& formatExecutable, const std::filesystem::path& dir, std::vector<std::filesystem::path>&& ignorePaths)
 {
-	const std::array<const char*, 6> extensions = {".cpp", ".cxx", ".c", ".h", ".hxx", ".hpp"};
-
 	std::vector<std::filesystem::path> files;
-	files.reserve(1024);
+	files.reserve(4096);
 
 	for (const auto& entry : std::filesystem::recursive_directory_iterator(dir))
 	{
@@ -162,11 +170,9 @@ int doJob(const std::filesystem::path& formatExecutable, const std::filesystem::
 
 		bool isIgnored = false;
 
-		for (auto igDir : ignoreDirs)
+		for (auto igDir : ignorePaths)
 		{
-			const std::string igDirStr = dir.generic_string() + "/" + igDir.generic_string();
-			const std::string fileRootPath = std::string(filePath.generic_string(), 0, igDirStr.size());
-			if (igDirStr == fileRootPath)
+			if ((std::filesystem::is_directory(igDir) && filePath.root_path() == igDir) || (std::filesystem::is_regular_file(igDir) && igDir == filePath))
 			{
 				isIgnored = true;
 				log(VERBOSE, "Ignoring file: %s", filePath.generic_string().data());
@@ -200,6 +206,7 @@ int doJob(const std::filesystem::path& formatExecutable, const std::filesystem::
 
 void parseArgs(int argc, char* argv[])
 {
+	// TODO: rewrite someday
 	for (int i = 0; i < argc; ++i)
 	{
 		const std::string_view arg = argv[i];
@@ -218,7 +225,7 @@ void parseArgs(int argc, char* argv[])
 			else if (arg == "-I")
 			{
 				++i;
-				ignoreDirs.reserve(argc - i);
+				ignorePaths.reserve(argc - i);
 				for (; i < argc; ++i)
 				{
 					if (std::string_view(argv[i]) == "--verbose")
@@ -226,7 +233,7 @@ void parseArgs(int argc, char* argv[])
 						logLevel = VERBOSE;
 						break;
 					}
-					ignoreDirs.push_back(std::filesystem::path(argv[i]));
+					ignorePaths.push_back(std::filesystem::path(argv[i]));
 				}
 			}
 			else if (arg == "--verbose")

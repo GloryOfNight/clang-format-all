@@ -6,8 +6,14 @@
 #include <filesystem>
 #include <iostream>
 #include <string>
+#include <string_view>
 #include <thread>
 #include <vector>
+
+#define ARG_VERBOSE "--verbose"
+#define ARG_SOURCE_DIR "-S"
+#define ARG_EXEC_DIR "-E"
+#define ARG_IGNORE_PATHS "-I"
 
 constexpr std::array<const char*, 6> extensions = {".cpp", ".cxx", ".c", ".h", ".hxx", ".hpp"};
 
@@ -21,10 +27,10 @@ std::vector<std::filesystem::path> ignorePaths;
 
 enum
 {
-	OK = 0,
-	CLANG_FORMAT_EXEC_NOT_FOUND = 1,
-	ARG_SOURCE_NOT_VALID = 2,
-	ARG_EXEC_NOT_VALID = 3
+	RET_OK = 0,
+	RET_CLANG_FORMAT_EXEC_NOT_FOUND = 1,
+	RET_ARG_SOURCE_NOT_VALID = 2,
+	RET_ARG_EXEC_NOT_VALID = 3
 } error_codes;
 
 enum
@@ -36,11 +42,8 @@ enum
 int logLevel = DISPLAY;
 
 void handleAbort(int sig);
-
 void parseArgs(int argc, char* argv[]);
-
 void log(int level, const char* log, ...);
-
 int doJob(const std::filesystem::path& formatExecutable, const std::filesystem::path& dir, std::vector<std::filesystem::path>&& ignoreDirs);
 
 int main(int argc, char* argv[])
@@ -56,7 +59,7 @@ int main(int argc, char* argv[])
 		if (!std::filesystem::is_directory(sourceDir))
 		{
 			log(ERROR, "Not a directory: %s", sourceDir.generic_string().data());
-			return ARG_SOURCE_NOT_VALID;
+			return RET_ARG_SOURCE_NOT_VALID;
 		}
 	}
 	else
@@ -66,10 +69,10 @@ int main(int argc, char* argv[])
 
 	if (!formatExecPath.empty())
 	{
-		if (!std::filesystem::exists(formatExecPath) && !std::filesystem::is_regular_file(formatExecPath))
+		if (!std::filesystem::is_regular_file(formatExecPath))
 		{
 			log(ERROR, "Not a file: %s", formatExecPath.generic_string().data());
-			return ARG_EXEC_NOT_VALID;
+			return RET_ARG_EXEC_NOT_VALID;
 		}
 	}
 	else
@@ -83,10 +86,10 @@ int main(int argc, char* argv[])
 		const char* exeStem = "";
 #endif
 		formatExecPath = std::filesystem::path(LLVMdir + std::string("/bin/clang-format") + exeStem);
-		if (!std::filesystem::exists(formatExecPath) && std::filesystem::is_regular_file(formatExecPath))
+		if (!std::filesystem::is_regular_file(formatExecPath))
 		{
 			log(ERROR, "Clang-format executable not found, could not proceed.");
-			return CLANG_FORMAT_EXEC_NOT_FOUND;
+			return RET_CLANG_FORMAT_EXEC_NOT_FOUND;
 		}
 	}
 	log(DISPLAY, "Using clang-format: %s", formatExecPath.generic_string().data());
@@ -98,7 +101,7 @@ int main(int argc, char* argv[])
 		{
 			log(ERROR, "Ignore path DO NOT exist: %s", igPath.generic_string().data());
 		}
-		else 
+		else
 		{
 			log(DISPLAY, "Ignoring: %s", igPath.generic_string().data());
 		}
@@ -117,7 +120,7 @@ int main(int argc, char* argv[])
 	thread.join();
 
 	log(DISPLAY, "Done");
-	return OK;
+	return RET_OK;
 }
 
 void handleAbort(int sig)
@@ -213,45 +216,53 @@ int doJob(const std::filesystem::path& formatExecutable, const std::filesystem::
 		std::for_each(std::execution::par_unseq, files.begin(), files.end(), lambda);
 
 	abortJob = true;
-	return OK;
+	return RET_OK;
+}
+
+bool readArg(const std::string_view& arg, const std::string_view& nextArg)
+{
+	bool bWasRead = false;
+	if (arg == ARG_VERBOSE)
+	{
+		logLevel = VERBOSE;
+		bWasRead = true;
+	}
+	else if (arg == ARG_SOURCE_DIR)
+	{
+		sourceDir = std::filesystem::path(nextArg);
+		bWasRead = true;
+	}
+	else if (arg == ARG_EXEC_DIR)
+	{
+		formatExecPath = std::filesystem::path(nextArg);
+		bWasRead = true;
+	}
+	else if (arg == ARG_IGNORE_PATHS && !nextArg.empty() && !readArg(nextArg, std::string_view()))
+	{
+		ignorePaths.push_back(std::filesystem::path(nextArg));
+		bWasRead = true;
+	}
+	return bWasRead;
 }
 
 void parseArgs(int argc, char* argv[])
 {
-	// TODO: rewrite someday
 	for (int i = 0; i < argc; ++i)
 	{
 		const std::string_view arg = argv[i];
-		if (i + 1 < argc)
+		if (arg == ARG_IGNORE_PATHS)
 		{
-			if (arg == "-S")
+			for (int k = i; k < argc; ++k)
 			{
-				++i;
-				sourceDir = std::filesystem::path(argv[i]);
+				const std::string_view nextArg = k + 1 < argc ? argv[k + 1] : std::string_view();
+				if (!readArg(arg, nextArg))
+					break;
 			}
-			else if (arg == "-E")
-			{
-				++i;
-				formatExecPath = std::filesystem::path(argv[i]);
-			}
-			else if (arg == "-I")
-			{
-				++i;
-				ignorePaths.reserve(argc - i);
-				for (; i < argc; ++i)
-				{
-					if (std::string_view(argv[i]) == "--verbose")
-					{
-						logLevel = VERBOSE;
-						break;
-					}
-					ignorePaths.push_back(std::filesystem::path(argv[i]));
-				}
-			}
-			else if (arg == "--verbose")
-			{
-				logLevel = VERBOSE;
-			}
+		}
+		else
+		{
+			const std::string_view nextArg = i + 1 < argc ? argv[i + 1] : std::string_view();
+			readArg(arg, nextArg);
 		}
 	}
 }

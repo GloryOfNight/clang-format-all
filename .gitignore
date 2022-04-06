@@ -15,6 +15,7 @@ _deps
 .vs/*
 .vscode/*
 .idea/*
+.cache/*
 
 # Build dirs
 build/*

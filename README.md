@@ -13,6 +13,7 @@ Demo of me formatting Unreal Engine 4.26.2 `Engine/Source` folder and also provi
 
 # Prerequisites
 Please make sure you have installed [clang](https://github.com/llvm/llvm-project/releases) and set LLVM environment variable.
+
 You can also provide command line argument for clang-format executable manually. Please see options section below.
 
 # Options

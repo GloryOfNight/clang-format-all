@@ -22,7 +22,7 @@ Pre-build download avaible thru [releases](https://github.com/GloryOfNight/clang
 # Options
 - `--verbose` enable a little bit more detail logging
 - `-S` optional, specify source directory to reformat, if not prodived program will use current working directory as source
-- `-E` optional, specify clang-format executable, if not provided program will try to find it
+- `-E` optional, specify clang-format executable path, if not provided program will try to find it for LLVM path env variable
 - `-I` optional, ignore folders or files in releative paths to `-S`
 
 example command (git bash, windows):

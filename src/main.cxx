@@ -14,6 +14,7 @@
 #define ARG_SOURCE_DIR "-S"
 #define ARG_EXEC_DIR "-E"
 #define ARG_IGNORE_PATHS "-I"
+#define ARG_CLANG_COMMANDS "-C"
 
 constexpr std::array<const char*, 6> extensions = {".cpp", ".cxx", ".c", ".h", ".hxx", ".hpp"};
 
@@ -23,6 +24,7 @@ std::atomic<size_t> currentFiles = 0;
 
 std::filesystem::path sourceDir;
 std::filesystem::path formatExecPath;
+std::string formatCommands;
 std::vector<std::filesystem::path> ignorePaths;
 
 enum
@@ -30,7 +32,8 @@ enum
 	RET_OK = 0,
 	RET_CLANG_FORMAT_EXEC_NOT_FOUND = 1,
 	RET_ARG_SOURCE_NOT_VALID = 2,
-	RET_ARG_EXEC_NOT_VALID = 3
+	RET_ARG_EXEC_NOT_VALID = 3,
+	RET_CLANG_FORMAT_ERROR = 4
 } error_codes;
 
 enum
@@ -69,6 +72,11 @@ int main(int argc, char* argv[])
 
 	if (!formatExecPath.empty())
 	{
+		if (formatExecPath.is_relative())
+		{
+			formatExecPath = std::filesystem::absolute(formatExecPath);
+		}
+
 		if (!std::filesystem::is_regular_file(formatExecPath))
 		{
 			log(ERROR, "Not a file: %s", formatExecPath.generic_string().data());
@@ -202,12 +210,19 @@ int doJob(const std::filesystem::path& formatExecutable, const std::filesystem::
 	}
 	totalFiles = files.size();
 
-	const auto lambda = [&formatExecutable](const std::filesystem::path& path)
+	std::atomic<int> result = RET_OK;
+
+	const auto lambda = [&formatExecutable, &result](const std::filesystem::path& path)
 	{
 		if (!abortJob)
 		{
-			const auto command = std::string('"' + formatExecutable.generic_string() + '"' + " -i " + path.generic_string());
-			const int res = std::system(command.data());
+			const auto baseCommand = std::string('"' + formatExecutable.generic_string() + '"' + " -i " + path.generic_string());
+			const auto fullCommand = baseCommand + ' ' + formatCommands;
+			const int commandRes = std::system(fullCommand.data());
+			if (commandRes != RET_OK && result == RET_OK)
+			{
+				result = RET_CLANG_FORMAT_ERROR;
+			}
 			++currentFiles;
 		}
 	};
@@ -216,7 +231,7 @@ int doJob(const std::filesystem::path& formatExecutable, const std::filesystem::
 		std::for_each(std::execution::par_unseq, files.begin(), files.end(), lambda);
 
 	abortJob = true;
-	return RET_OK;
+	return result;
 }
 
 bool readArg(const std::string_view& arg, const std::string_view& nextArg)
@@ -235,6 +250,11 @@ bool readArg(const std::string_view& arg, const std::string_view& nextArg)
 	else if (arg == ARG_EXEC_DIR)
 	{
 		formatExecPath = std::filesystem::path(nextArg);
+		bWasRead = true;
+	}
+	else if (arg == ARG_CLANG_COMMANDS)
+	{
+		formatCommands = nextArg;
 		bWasRead = true;
 	}
 	else if (arg == ARG_IGNORE_PATHS && !nextArg.empty() && !readArg(nextArg, std::string_view()))

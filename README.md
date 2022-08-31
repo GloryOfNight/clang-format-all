@@ -24,10 +24,11 @@ Pre-build download avaible thru [releases](https://github.com/GloryOfNight/clang
 - `-S` optional, specify source directory to reformat, if not prodived program will use current working directory as source
 - `-E` optional, specify clang-format executable path, if not provided program will try to find it for LLVM path env variable
 - `-I` optional, ignore folders or files in releative paths to `-S`
+- `-C` optional, specify additional command-line arguments for clang-format command, for example --dry-run --Werror
 
 example command (git bash, windows):
 
-`./clang-format-all.exe -S C:/4.26.2-release/Engine/Source -E "C:\Program Files\LLVM\bin\clang-format.exe" -I Editor Developer ThirdParty --verbose`
+`./clang-format-all.exe -S C:/4.26.2-release/Engine/Source -E Tools/clang-format.exe -I Editor Developer ThirdParty -C "--dry-run --Werror" --verbose`
 
 # Support
 If you found this usefull, give it a star. Stars, yay ⭐

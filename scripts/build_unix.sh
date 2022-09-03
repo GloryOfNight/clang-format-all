@@ -1,1 +1,1 @@
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build --config=Release && cmake --install build
+cmake --preset linux64-release && cmake --build build && cmake --install build

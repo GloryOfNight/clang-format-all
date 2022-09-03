@@ -8,6 +8,34 @@
       "binaryDir": "${sourceDir}/build"
     },
     {
+      "name": "linux64-base",
+      "inherits": "base",
+      "hidden": true,
+      "generator": "Unix Makefiles",
+      "architecture": {
+        "value": "x64",
+        "strategy": "external"
+      },
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      },
+      "cacheVariables": {"CMAKE_C_COMPILER": "clang", "CMAKE_CXX_COMPILER": "clang++"}
+    },
+    {
+      "name": "linux64-debug",
+      "inherits":"linux64-base",
+      "displayName": "Debug",
+      "cacheVariables": {"CMAKE_BUILD_TYPE":"Debug"}
+    },
+    {
+      "name": "linux64-release",
+      "inherits":"linux64-base",
+      "displayName": "Release",
+      "cacheVariables": {"CMAKE_BUILD_TYPE":"Release"}
+    },
+    {
       "name": "win64",
       "displayName": "Win64",
       "inherits": "base",
@@ -25,14 +53,25 @@
   ],
   "buildPresets": [
     {
+      "name": "win64-base",
+      "hidden": true,
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      }
+    },
+    {
       "name": "win64-debug",
       "displayName": "Debug",
+      "inherits": "win64-base",
       "configurePreset": "win64",
       "configuration": "debug"
     },
     {
       "name": "win64-release",
       "displayName": "Release",
+      "inherits": "win64-base",
       "configurePreset": "win64",
       "configuration": "release"
     }

@@ -12,8 +12,6 @@
 
 struct val_ref
 {
-	val_ref() = default;
-
 	template <typename T>
 	constexpr val_ref(const std::string_view& inName, T& inValue)
 		: name{inName}

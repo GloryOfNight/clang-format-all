@@ -10,12 +10,18 @@ There are no special dependencies, project can be easily compiled for Windows an
 # Download
 Pre-build download avaible thru [releases](https://github.com/GloryOfNight/clang-format-all/releases) page.
 
+# Build
+On Linux: `sh ./scripts/build_unix.sh` NOTE: you might need to install libtbb for successfull build!
+
+On Windows (git bash): `./scripts/build_win.bat`
+
 # Options
 - `-S` optional, specify source directory to reformat, if not prodived program will use current working directory as source
 - `-I` optional, ignore folders or files in releative paths to `-S`
 - `-E` optional, specify clang-format executable path, if not provided program will try to find it from [LLVM](https://github.com/llvm/llvm-project/releases) path env variable
 - `-C` optional, specify additional command-line arguments for clang-format command, for example --dry-run --Werror --style firefox
 - `--verbose` enable more logging (could slow down the perfomance!)
+- `--no-logs` enable to disable all logs (could slighly improve the perfomance)
 
 example command (git bash, windows):
 

@@ -14,7 +14,7 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
 # for #include <execution> on UNIX must link tbb library
 if(UNIX)
 find_library(TBB_LIB NAMES tbb REQUIRED)
-target_link_libraries(${PROJECT_NAME} "tbb")
+target_link_libraries(${PROJECT_NAME} "tbb" "pthread")
 endif()
 
 install(TARGETS ${PROJECT_NAME} RUNTIME DESTINATION "${CMAKE_CURRENT_SOURCE_DIR}/install")

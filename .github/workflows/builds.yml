@@ -27,8 +27,8 @@ jobs:
     steps:
     - uses: actions/checkout@v2
 
-    - name: Install libtbb
-      run: sudo apt install libtbb-dev
+    - name: Install libs
+      run: sudo apt install libtbb-dev && sudo apt install libpthread-dev
 
     - name: Run build script
       run: sh ./scripts/build_unix.sh

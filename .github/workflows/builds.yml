@@ -31,4 +31,4 @@ jobs:
       run: sudo apt install libtbb-dev
 
     - name: Run build script
-      run: ./scripts/build_unix.bat
+      run: sh ./scripts/build_unix.sh

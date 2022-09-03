@@ -10,22 +10,68 @@
 #include <thread>
 #include <vector>
 
-#define ARG_VERBOSE "--verbose"
-#define ARG_SOURCE_DIR "-S"
-#define ARG_EXEC_DIR "-E"
-#define ARG_IGNORE_PATHS "-I"
-#define ARG_CLANG_COMMANDS "-C"
+struct val_ref
+{
+	val_ref() = default;
 
-constexpr std::array<const char*, 6> extensions = {".cpp", ".cxx", ".c", ".h", ".hxx", ".hpp"};
+	template <typename T>
+	constexpr val_ref(const std::string_view& inName, T& inValue)
+		: name{inName}
+		, value{&inValue}
+		, type{typeid(T)}
+	{
+	}
 
-std::atomic<bool> abortJob = false;
-std::atomic<size_t> totalFiles = 0;
-std::atomic<size_t> currentFiles = 0;
+	std::string_view name;
+	void* value;
+	const std::type_info& type;
 
+	template <typename T>
+	T* to() const
+	{
+		if (type == typeid(T))
+		{
+			return reinterpret_cast<T*>(value);
+		}
+		return nullptr;
+	}
+};
+
+bool logUseDisabled;
+bool logUseVerbose;
 std::filesystem::path sourceDir;
 std::filesystem::path formatExecPath;
 std::string formatCommands;
 std::vector<std::filesystem::path> ignorePaths;
+// clang-format off
+constexpr std::array<val_ref, 6> args =
+	{
+		{
+			{"--no-logs", logUseDisabled},
+			{"--verbose", logUseVerbose},
+			{"-S", sourceDir},
+			{"-E", formatExecPath},
+			{"-I", formatCommands},
+			{"-C", ignorePaths}
+		}
+	};
+// clang-format on
+
+std::string_view llvm;
+// clang-format off
+constexpr std::array<val_ref, 1> env_vars =
+	{
+		{
+			{"LLVM", llvm}
+		}
+	};
+// clang-format on
+
+constexpr std::array<std::string_view, 6> extensions = {".cpp", ".cxx", ".c", ".h", ".hxx", ".hpp"};
+
+std::atomic<bool> abortJob = false;
+std::atomic<size_t> totalFiles = 0;
+std::atomic<size_t> currentFiles = 0;
 
 enum
 {
@@ -38,6 +84,7 @@ enum
 
 enum
 {
+	DISABLED = -1,
 	VERBOSE = 0,
 	DISPLAY = 1,
 	ERROR = 2
@@ -45,17 +92,30 @@ enum
 int logLevel = DISPLAY;
 
 void handleAbort(int sig);
+
 void parseArgs(int argc, char* argv[]);
+void parseEnvp(char* envp[]);
+
 void log(int level, const char* log, ...);
 int doJob(const std::filesystem::path& formatExecutable, const std::filesystem::path& dir, std::vector<std::filesystem::path>&& ignoreDirs);
 
-int main(int argc, char* argv[])
+int main(int argc, char* argv[], char* envp[])
 {
 	std::signal(SIGABRT, handleAbort);
 	std::signal(SIGINT, handleAbort);
 	std::signal(SIGTERM, handleAbort);
 
 	parseArgs(argc, argv);
+	parseEnvp(envp);
+
+	if (logUseDisabled)
+	{
+		logLevel = DISABLED;
+	}
+	else if (logUseVerbose)
+	{
+		logLevel = VERBOSE;
+	}
 
 	if (!sourceDir.empty())
 	{
@@ -85,15 +145,12 @@ int main(int argc, char* argv[])
 	}
 	else
 	{
-		const char* LLVMdir = std::getenv("LLVM");
-		if (LLVMdir == nullptr)
-			LLVMdir = "";
 #if _WINDOWS
 		const char* exeStem = ".exe";
 #else
 		const char* exeStem = "";
 #endif
-		formatExecPath = std::filesystem::path(LLVMdir + std::string("/bin/clang-format") + exeStem);
+		formatExecPath = std::filesystem::path(std::string(llvm) + "/bin/clang-format" + exeStem);
 		if (!std::filesystem::is_regular_file(formatExecPath))
 		{
 			log(ERROR, "Clang-format executable not found, could not proceed.");
@@ -118,12 +175,15 @@ int main(int argc, char* argv[])
 	log(DISPLAY, "Starting job thread. . .");
 	auto thread = std::thread(doJob, formatExecPath, sourceDir, std::move(ignorePaths));
 
-	while (!abortJob)
+	if (logLevel >= VERBOSE)
 	{
-		std::cout << "Formatted files: " << currentFiles << " / " << totalFiles << "\r" << std::flush;
-		std::this_thread::sleep_for(std::chrono::milliseconds(150));
+		while (!abortJob)
+		{
+			std::cout << "Formatted files: " << currentFiles << " / " << totalFiles << "\r" << std::flush;
+			std::this_thread::sleep_for(std::chrono::milliseconds(150));
+		}
+		std::cout << "Formatted files: " << currentFiles << " / " << totalFiles << std::endl;
 	}
-	std::cout << "Formatted files: " << currentFiles << " / " << totalFiles << std::endl;
 
 	thread.join();
 
@@ -139,6 +199,9 @@ void handleAbort(int sig)
 
 void log(int level, const char* log, ...)
 {
+	if (logLevel <= DISABLED)
+		return;
+
 	if (level < logLevel)
 		return;
 
@@ -217,7 +280,7 @@ int doJob(const std::filesystem::path& formatExecutable, const std::filesystem::
 		if (!abortJob)
 		{
 			const auto baseCommand = std::string('"' + formatExecutable.generic_string() + '"' + " -i " + path.generic_string());
-			const auto fullCommand = baseCommand + ' ' + formatCommands;
+			const auto fullCommand = baseCommand + formatCommands;
 			const int commandRes = std::system(fullCommand.data());
 			if (commandRes != RET_OK && result == RET_OK)
 			{
@@ -234,55 +297,62 @@ int doJob(const std::filesystem::path& formatExecutable, const std::filesystem::
 	return result;
 }
 
-bool readArg(const std::string_view& arg, const std::string_view& nextArg)
-{
-	bool bWasRead = false;
-	if (arg == ARG_VERBOSE)
-	{
-		logLevel = VERBOSE;
-		bWasRead = true;
-	}
-	else if (arg == ARG_SOURCE_DIR)
-	{
-		sourceDir = std::filesystem::path(nextArg);
-		bWasRead = true;
-	}
-	else if (arg == ARG_EXEC_DIR)
-	{
-		formatExecPath = std::filesystem::path(nextArg);
-		bWasRead = true;
-	}
-	else if (arg == ARG_CLANG_COMMANDS)
-	{
-		formatCommands = nextArg;
-		bWasRead = true;
-	}
-	else if (arg == ARG_IGNORE_PATHS && !nextArg.empty() && !readArg(nextArg, std::string_view()))
-	{
-		ignorePaths.push_back(std::filesystem::path(nextArg));
-		bWasRead = true;
-	}
-	return bWasRead;
-}
-
 void parseArgs(int argc, char* argv[])
 {
+	val_ref const* prev_arg = nullptr;
 	for (int i = 0; i < argc; ++i)
 	{
 		const std::string_view arg = argv[i];
-		if (arg == ARG_IGNORE_PATHS)
+
+		const auto res = std::find_if(std::begin(args), std::end(args), [&arg](const val_ref& val)
+			{ return arg == val.name; });
+
+		if (res != std::end(args))
 		{
-			for (int k = i; k < argc; ++k)
+			prev_arg = &(*res);
+			if (auto val = prev_arg->to<bool>())
 			{
-				const std::string_view nextArg = k + 1 < argc ? argv[k + 1] : std::string_view();
-				if (!readArg(arg, nextArg))
-					break;
+				*val = true;
+				prev_arg = nullptr;
 			}
 		}
-		else
+		else if (prev_arg)
 		{
-			const std::string_view nextArg = i + 1 < argc ? argv[i + 1] : std::string_view();
-			readArg(arg, nextArg);
+			if (auto val = prev_arg->to<std::string>())
+			{
+				*val = arg;
+				prev_arg = nullptr;
+			}
+			else if (auto val = prev_arg->to<std::filesystem::path>())
+			{
+				*val = arg;
+				prev_arg = nullptr;
+			}
+			else if (auto val = prev_arg->to<std::vector<std::filesystem::path>>())
+			{
+				val->push_back(arg);
+			}
+		}
+	}
+}
+
+void parseEnvp(char* envp[])
+{
+	for (int i = 0; envp[i] != NULL; ++i)
+	{
+		const std::string_view env = envp[i];
+		const std::string_view env_name = env.substr(0, env.find_first_of('='));
+
+		const auto res = std::find_if(std::begin(env_vars), std::end(env_vars), [&env_name](const val_ref& val)
+			{ return val.name == env_name; });
+
+		if (res != std::end(env_vars))
+		{
+			const std::string_view env_value = env.substr(env.find_first_of('=') + 1);
+			if (auto val = res->to<std::string_view>())
+			{
+				*val = env_value;
+			}
 		}
 	}
 }

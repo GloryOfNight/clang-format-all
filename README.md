@@ -7,22 +7,13 @@ Thanks to `<execution>`, I execute clang-format in parallel policy that results 
 
 There are no special dependencies, project can be easily compiled for Windows and Unix systems. 
 
-Demo of me formatting most of Unreal Engine 4.26.2 `Engine/Source` folder and also providing args to ignore folders `Editor Developers . . .`
-
-[Watch Demo](https://youtu.be/9gjA-pANNsA)
-
-# Prerequisites
-Please make sure you have installed [clang](https://github.com/llvm/llvm-project/releases) and set LLVM environment variable.
-
-You can also provide command line argument for clang-format executable manually. Please see options section below.
-
 # Download
 Pre-build download avaible thru [releases](https://github.com/GloryOfNight/clang-format-all/releases) page.
 
 # Options
 - `-S` optional, specify source directory to reformat, if not prodived program will use current working directory as source
 - `-I` optional, ignore folders or files in releative paths to `-S`
-- `-E` optional, specify clang-format executable path, if not provided program will try to find it from LLVM path env variable
+- `-E` optional, specify clang-format executable path, if not provided program will try to find it from [LLVM](https://github.com/llvm/llvm-project/releases) path env variable
 - `-C` optional, specify additional command-line arguments for clang-format command, for example --dry-run --Werror --style firefox
 - `--verbose` enable more logging (could slow down the perfomance!)
 

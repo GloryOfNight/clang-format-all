@@ -20,3 +20,4 @@ _deps
 # Build dirs
 build/*
 out/*
+install/*

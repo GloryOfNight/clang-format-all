@@ -1,1 +1,1 @@
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build --config Release --target INSTALL
+cmake --preset=win64 && cmake --build --preset win64-release --target INSTALL

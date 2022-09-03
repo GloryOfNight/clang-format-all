@@ -1,41 +1,40 @@
 {
-  "version": 2,
+  "version": 3,
   "configurePresets": [
     {
-      "name": "default-x64",
-      "displayName": "default-x64",
-      "description": "Default preset for project",
-      "generator": "Ninja",
-      "binaryDir": "${sourceDir}/build",
+      "name": "base",
+      "hidden": true,
+      "installDir": "${sourceDir}/install",
+      "binaryDir": "${sourceDir}/build"
+    },
+    {
+      "name": "win64",
+      "displayName": "Win64",
+      "inherits": "base",
       "architecture": {
         "value": "x64",
-        "strategy": "external"
+        "strategy": "set"
       },
-      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug" }
-    },
-    {
-      "name": "default-x64-release",
-      "inherits": "default-x64",
-      "cacheVariables": {"CMAKE_BUILD_TYPE": "Release"}
-    },
-    {
-      "name": "Visual Studio 2019",
-      "displayName": "Visual Studio 16 2019",
-      "description": "Use Visual Studio 16 2019 generator",
-      "inherits": "default-x64",
-      "generator": "Visual Studio 16 2019"
+      "generator": "Visual Studio 17 2022",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      }
     }
   ],
   "buildPresets": [
     {
-      "name": "Debug VS2019",
-      "configuration": "Debug",
-      "configurePreset": "Visual Studio 2019"
+      "name": "win64-debug",
+      "displayName": "Debug",
+      "configurePreset": "win64",
+      "configuration": "debug"
     },
     {
-      "name": "Release VS2019",
-      "inherits": "Debug VS2019",
-      "configuration": "Release"
+      "name": "win64-release",
+      "displayName": "Release",
+      "configurePreset": "win64",
+      "configuration": "release"
     }
   ]
 }

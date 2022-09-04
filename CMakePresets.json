@@ -21,40 +21,33 @@
         "lhs": "${hostSystemName}",
         "rhs": "Linux"
       },
-      "cacheVariables": {"CMAKE_C_COMPILER": "clang", "CMAKE_CXX_COMPILER": "clang++"}
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_CXX_COMPILER": "clang++"
+      }
     },
     {
       "name": "linux64-debug",
-      "inherits":"linux64-base",
+      "inherits": "linux64-base",
       "displayName": "Debug",
-      "cacheVariables": {"CMAKE_BUILD_TYPE":"Debug"}
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug" }
     },
     {
       "name": "linux64-release",
-      "inherits":"linux64-base",
+      "inherits": "linux64-base",
       "displayName": "Release",
-      "cacheVariables": {"CMAKE_BUILD_TYPE":"Release"}
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Release" }
     },
     {
-      "name": "win64",
+      "name": "win64-base",
+      "hidden": true,
       "displayName": "Win64",
       "inherits": "base",
       "architecture": {
         "value": "x64",
-        "strategy": "set"
+        "strategy": "external"
       },
-      "generator": "Visual Studio 17 2022",
-      "condition": {
-        "type": "equals",
-        "lhs": "${hostSystemName}",
-        "rhs": "Windows"
-      }
-    }
-  ],
-  "buildPresets": [
-    {
-      "name": "win64-base",
-      "hidden": true,
+      "generator": "Ninja",
       "condition": {
         "type": "equals",
         "lhs": "${hostSystemName}",
@@ -63,17 +56,15 @@
     },
     {
       "name": "win64-debug",
-      "displayName": "Debug",
       "inherits": "win64-base",
-      "configurePreset": "win64",
-      "configuration": "debug"
+      "displayName": "Debug",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug" }
     },
     {
       "name": "win64-release",
-      "displayName": "Release",
       "inherits": "win64-base",
-      "configurePreset": "win64",
-      "configuration": "release"
+      "displayName": "Release",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Release" }
     }
   ]
 }

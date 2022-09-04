@@ -1,1 +1,1 @@
-cmake --preset=win64 && cmake --build --preset win64-release --target INSTALL
+cmake --preset=win64-release && cmake --build build --target INSTALL

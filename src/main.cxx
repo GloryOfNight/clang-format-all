@@ -4,6 +4,7 @@
 #include <cstdarg>
 #include <execution>
 #include <filesystem>
+#include <future>
 #include <iostream>
 #include <string>
 #include <string_view>
@@ -27,22 +28,18 @@ struct val_ref
 	template <typename T>
 	T* to() const
 	{
-		if (type == typeid(T))
-		{
-			return reinterpret_cast<T*>(value);
-		}
-		return nullptr;
+		return type == typeid(T) ? reinterpret_cast<T*>(value) : nullptr;
 	}
 };
 
-bool logUseDisabled;
-bool logUseVerbose;
-std::filesystem::path sourceDir;
-std::filesystem::path formatExecPath;
-std::string formatCommands;
-std::vector<std::filesystem::path> ignorePaths;
+static bool logUseDisabled;
+static bool logUseVerbose;
+static std::filesystem::path sourceDir;
+static std::filesystem::path formatExecPath;
+static std::string formatCommands;
+static std::vector<std::filesystem::path> ignorePaths;
 // clang-format off
-constexpr std::array<val_ref, 6> args =
+static constexpr std::array<val_ref, 6> args =
 	{
 		{
 			{"--no-logs", logUseDisabled},
@@ -55,9 +52,9 @@ constexpr std::array<val_ref, 6> args =
 	};
 // clang-format on
 
-std::string_view llvm;
+static std::string_view llvm;
 // clang-format off
-constexpr std::array<val_ref, 1> env_vars =
+static constexpr std::array<val_ref, 1> env_vars =
 	{
 		{
 			{"LLVM", llvm}
@@ -65,29 +62,30 @@ constexpr std::array<val_ref, 1> env_vars =
 	};
 // clang-format on
 
-constexpr std::array<std::string_view, 6> extensions = {".cpp", ".cxx", ".c", ".h", ".hxx", ".hpp"};
+static constexpr std::array<std::string_view, 6> extensions = {".cpp", ".cxx", ".c", ".h", ".hxx", ".hpp"};
 
-std::atomic<bool> abortJob = false;
-std::atomic<size_t> totalFiles = 0;
-std::atomic<size_t> currentFiles = 0;
+static std::atomic<bool> abortJob = false;
+static std::atomic<size_t> totalFiles = 0;
+static std::atomic<size_t> currentFiles = 0;
 
-enum
+enum // exit codes
 {
 	RET_OK = 0,
 	RET_CLANG_FORMAT_EXEC_NOT_FOUND = 1,
 	RET_ARG_SOURCE_NOT_VALID = 2,
 	RET_ARG_EXEC_NOT_VALID = 3,
 	RET_CLANG_FORMAT_ERROR = 4
-} error_codes;
+};
 
-enum
+enum // log levels
 {
 	DISABLED = -1,
 	VERBOSE = 0,
 	DISPLAY = 1,
 	ERROR = 2
-} log_levels;
-int logLevel = DISPLAY;
+};
+// current log level aswell as default
+static int logLevel = DISPLAY;
 
 void handleAbort(int sig);
 
@@ -171,8 +169,8 @@ int main(int argc, char* argv[], char* envp[])
 	}
 
 	log(DISPLAY, "Starting job thread. . .");
-	auto thread = std::thread(doJob, formatExecPath, sourceDir, std::move(ignorePaths));
 
+	auto future = std::async(doJob, formatExecPath, sourceDir, std::move(ignorePaths));
 	if (logLevel >= VERBOSE)
 	{
 		while (!abortJob)
@@ -182,11 +180,11 @@ int main(int argc, char* argv[], char* envp[])
 		}
 		std::cout << "Formatted files: " << currentFiles << " / " << totalFiles << std::endl;
 	}
+	future.wait();
 
-	thread.join();
-
-	log(DISPLAY, "Done");
-	return RET_OK;
+	const int futureExitCode = future.get();
+	log(DISPLAY, "Exit code: %i", futureExitCode);
+	return futureExitCode;
 }
 
 void handleAbort(int sig)

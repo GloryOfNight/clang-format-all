@@ -1,6 +1,6 @@
 # Introduction
 This tool will help you reformat C++ project directory (or any directory containing Cxx files) using clang-format in fast multithreaded manor.
-Typical scripts are not very effective at reformating huge amouts of files at one go. This tool solves the issue by using newests features of C++17 standart.
+Typical scripts are not very effective at reformating huge amouts of files at one go. This tool solves the issue by using newests features of C++17 standard.
 
 There are no special dependencies, project can be easily compiled for Windows and Unix systems. 
 

@@ -7,6 +7,7 @@
       "installDir": "${sourceDir}/install",
       "binaryDir": "${sourceDir}/build"
     },
+    /* linux - begin */
     {
       "name": "linux64-base",
       "inherits": "base",
@@ -38,6 +39,8 @@
       "displayName": "Release",
       "cacheVariables": { "CMAKE_BUILD_TYPE": "Release" }
     },
+    /* linux - end */
+    /* win64 - begin */
     {
       "name": "win64-base",
       "hidden": true,
@@ -52,19 +55,56 @@
         "type": "equals",
         "lhs": "${hostSystemName}",
         "rhs": "Windows"
+      },
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_CXX_COMPILER": "clang++"
       }
     },
     {
       "name": "win64-debug",
       "inherits": "win64-base",
-      "displayName": "Debug",
+      "displayName": "Win64 Debug",
       "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug" }
     },
     {
       "name": "win64-release",
       "inherits": "win64-base",
-      "displayName": "Release",
+      "displayName": "Win64 Release",
       "cacheVariables": { "CMAKE_BUILD_TYPE": "Release" }
+    },
+    {
+      "name": "win64-relwithdebinfo",
+      "inherits": "win64-base",
+      "displayName": "Win64 RelWithDebInfo",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "RelWithDebInfo" }
+    },
+    /* win64 - end */
+    /* win64 - linux - crosscompilation  begin */
+    {
+      "name": "win64-linux-base",
+      "inherits": "win64-base",
+      "hidden": true,
+      "cacheVariables": { "CMAKE_SYSTEM_NAME": "Linux" }
+    },
+    {
+      "name": "win64-linux-debug",
+      "inherits": "win64-linux-base",
+      "displayName": "Linux Debug",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug" }
+    },
+    {
+      "name": "win64-linux-release",
+      "inherits": "win64-linux-base",
+      "displayName": "Linux Release",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Release" }
+    },
+    {
+      "name": "win64-linux-relwithdebinfo",
+      "inherits": "win64-linux-base",
+      "displayName": "Linux RelWithDebInfo",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "RelWithDebInfo" }
     }
+    /* win64 - linux - crosscompilation  end*/
   ]
 }

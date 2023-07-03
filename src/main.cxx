@@ -1,3 +1,9 @@
+#include "exit_codes.hxx"
+#include "files_collector.hxx"
+#include "files_formatter.hxx"
+#include "log.hxx"
+#include "statics.hxx"
+
 #include <array>
 #include <atomic>
 #include <csignal>
@@ -11,89 +17,10 @@
 #include <thread>
 #include <vector>
 
-struct val_ref
-{
-	template <typename T>
-	constexpr val_ref(const std::string_view& inName, const std::string_view& inNote, T& inValue)
-		: name{inName}
-		, note{inNote}
-		, value{&inValue}
-		, type{typeid(T)}
-	{
-	}
-
-	std::string_view name;
-	std::string_view note;
-	void* value;
-	const std::type_info& type;
-
-	template <typename T>
-	T* to() const
-	{
-		return type == typeid(T) ? reinterpret_cast<T*>(value) : nullptr;
-	}
-};
-
-static bool printHelp;
-static bool logUseDisabled;
-static bool logUseVerbose;
-static std::filesystem::path sourceDir;
-static std::filesystem::path formatExecPath;
-static std::string formatCommands;
-static std::vector<std::filesystem::path> ignorePaths;
-// clang-format off
-static constexpr auto args = std::array
-{
-	val_ref{"--help", "print help", printHelp},
-	val_ref{"--no-logs", "disable logs (might improve performance slightly)", logUseDisabled},
-	val_ref{"--verbose", "enable verbose logs", logUseVerbose},
-	val_ref{"-S", "source directory to format", sourceDir},
-	val_ref{"-E", "clang-format executable path", formatExecPath},
-	val_ref{"-I", "space separated list of paths to ignore relative to [-S]", formatCommands},
-	val_ref{"-C", "additional command-line arguments for clang-format executable", ignorePaths}
-};
-// clang-format on
-
-static std::string_view llvm;
-// clang-format off
-static constexpr auto env_vars = std::array
-{
-	val_ref{"LLVM","", llvm}
-};
-// clang-format on
-
-static constexpr std::array<std::string_view, 6> extensions = {".cpp", ".cxx", ".c", ".h", ".hxx", ".hpp"};
-
-static std::atomic<bool> abortJob = false;
-static std::atomic<size_t> totalFiles = 0;
-static std::atomic<size_t> currentFiles = 0;
-
-enum // exit codes
-{
-	RET_OK = 0,
-	RET_CLANG_FORMAT_EXEC_NOT_FOUND = 1,
-	RET_ARG_SOURCE_NOT_VALID = 2,
-	RET_ARG_EXEC_NOT_VALID = 3,
-	RET_CLANG_FORMAT_ERROR = 4
-};
-
-enum // log levels
-{
-	DISABLED = -1,
-	VERBOSE = 0,
-	DISPLAY = 1,
-	ERROR = 2
-};
-// current log level as well as default
-static int logLevel = DISPLAY;
-
 void handleAbort(int sig);
 
 void parseArgs(int argc, char* argv[]);
 void parseEnvp(char* envp[]);
-
-void log(int level, const char* log, ...);
-int doJob(const std::filesystem::path& formatExecutable, const std::filesystem::path& dir, std::vector<std::filesystem::path>&& ignoreDirs);
 
 int main(int argc, char* argv[], char* envp[])
 {
@@ -182,21 +109,33 @@ int main(int argc, char* argv[], char* envp[])
 		}
 	}
 
-	log(DISPLAY, "Starting job thread. . .");
+	log(DISPLAY, "Looking for formatable files . . .");
+	auto filesFuture = std::async(collectFilepaths, sourceDir, std::move(ignorePaths));
 
-	auto future = std::async(doJob, formatExecPath, sourceDir, std::move(ignorePaths));
-	if (logLevel >= VERBOSE)
+	while (1)
 	{
-		while (!abortJob)
-		{
-			std::cout << "Formatted files: " << currentFiles << " / " << totalFiles << "\r" << std::flush;
-			std::this_thread::sleep_for(std::chrono::milliseconds(150));
-		}
-		std::cout << "Formatted files: " << currentFiles << " / " << totalFiles << std::endl;
-	}
-	future.wait();
+		std::cout << "Files to format: " << totalFiles << "\r" << std::flush;
 
-	const int futureExitCode = future.get();
+		auto status = filesFuture.wait_for(std::chrono::milliseconds(1));
+		if (status == std::future_status::ready)
+			break;
+	}
+	std::cout << "Files to format: " << totalFiles << std::endl;
+
+	log(DISPLAY, "Starting formatting . . .");
+	auto formatFuture = std::async(formatFiles, std::move(filesFuture.get()));
+
+	while (1)
+	{
+		std::cout << "Formatted files: " << currentFiles << " / " << totalFiles << "\r" << std::flush;
+
+		auto status = formatFuture.wait_for(std::chrono::milliseconds(150));
+		if (status == std::future_status::ready)
+			break;
+	}
+	std::cout << "Formatted files: " << currentFiles << " / " << totalFiles << std::endl;
+
+	const int futureExitCode = formatFuture.get();
 	log(DISPLAY, "Exit code: %i", futureExitCode);
 	return futureExitCode;
 }
@@ -205,106 +144,6 @@ void handleAbort(int sig)
 {
 	abortJob = true;
 	log(ERROR, "\nABORT RECEIVED\n");
-}
-
-void log(int level, const char* log, ...)
-{
-	if (logLevel <= DISABLED)
-		return;
-
-	if (level < logLevel)
-		return;
-
-	va_list list;
-	va_start(list, log);
-	switch (level)
-	{
-	case VERBOSE:
-		std::vfprintf(stdout, (std::string(log) + '\n').data(), list);
-		break;
-	case DISPLAY:
-		std::vfprintf(stdout, (std::string(log) + '\n').data(), list);
-		break;
-	case ERROR:
-		std::vfprintf(stderr, (std::string(log) + '\n').data(), list);
-		break;
-	default:;
-	}
-	va_end(list);
-}
-
-int doJob(const std::filesystem::path& formatExecutable, const std::filesystem::path& dir, std::vector<std::filesystem::path>&& ignorePaths)
-{
-	std::vector<std::filesystem::path> files;
-	files.reserve(4096);
-
-	for (const auto& entry : std::filesystem::recursive_directory_iterator(dir))
-	{
-		if (abortJob)
-			break;
-
-		if (!entry.is_regular_file())
-			continue;
-
-		const auto filePath = entry.path();
-
-		const bool isCxxExtension = std::find(extensions.begin(), extensions.end(), filePath.filename().extension().generic_string()) != extensions.end();
-		if (!isCxxExtension)
-			continue;
-
-		bool isIgnored = false;
-
-		for (auto igDir : ignorePaths)
-		{
-			if (std::filesystem::is_directory(igDir))
-			{
-				const auto igDirStr = igDir.generic_string();
-				auto dirStr = filePath.generic_string();
-				if (const auto pos = dirStr.find_first_of('/', igDirStr.size() - 1); pos != std::string::npos)
-					dirStr.erase(pos);
-				isIgnored = dirStr == igDirStr;
-			}
-			else if (std::filesystem::is_regular_file(igDir) && igDir == filePath)
-			{
-				isIgnored = true;
-			}
-
-			if (isIgnored)
-			{
-				log(VERBOSE, "Ignoring file: %s", filePath.generic_string().data());
-				break;
-			}
-		}
-
-		if (isIgnored)
-			continue;
-
-		files.push_back(filePath);
-	}
-	totalFiles = files.size();
-
-	std::atomic<int> result = RET_OK;
-
-	const auto lambda = [&formatExecutable, &result](const std::filesystem::path& path)
-	{
-		if (!abortJob)
-		{
-			const auto baseCommand = std::string('"' + formatExecutable.generic_string() + '"' + " -i " + path.generic_string());
-			const auto fullCommand = baseCommand + formatCommands;
-			const int commandRes = std::system(fullCommand.data());
-			if (commandRes != RET_OK && result == RET_OK)
-			{
-				result = RET_CLANG_FORMAT_ERROR;
-			}
-			++currentFiles;
-		}
-	};
-
-	if (!abortJob)
-		std::for_each(std::execution::par_unseq, files.begin(), files.end(), lambda);
-
-	abortJob = true;
-	return result;
 }
 
 void parseArgs(int argc, char* argv[])

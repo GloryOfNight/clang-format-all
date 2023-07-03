@@ -2,6 +2,7 @@
 
 #include "statics.hxx"
 
+#include <algorithm>
 #include <atomic>
 #include <filesystem>
 #include <vector>

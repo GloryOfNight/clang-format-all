@@ -7,7 +7,6 @@
       "installDir": "${sourceDir}/install",
       "binaryDir": "${sourceDir}/build"
     },
-    /* linux - begin */
     {
       "name": "linux64-base",
       "inherits": "base",
@@ -39,8 +38,6 @@
       "displayName": "Release",
       "cacheVariables": { "CMAKE_BUILD_TYPE": "Release" }
     },
-    /* linux - end */
-    /* win64 - begin */
     {
       "name": "win64-base",
       "hidden": true,
@@ -79,8 +76,6 @@
       "displayName": "Win64 RelWithDebInfo",
       "cacheVariables": { "CMAKE_BUILD_TYPE": "RelWithDebInfo" }
     },
-    /* win64 - end */
-    /* win64 - linux - crosscompilation  begin */
     {
       "name": "win64-linux-base",
       "inherits": "win64-base",
@@ -105,6 +100,5 @@
       "displayName": "Linux RelWithDebInfo",
       "cacheVariables": { "CMAKE_BUILD_TYPE": "RelWithDebInfo" }
     }
-    /* win64 - linux - crosscompilation  end*/
   ]
 }

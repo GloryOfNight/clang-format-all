@@ -29,3 +29,8 @@ example command (git bash, windows):
 If you found this useful, give it a star. Stars, yay ⭐
 
 If you encounter issue, use Issues section above and write everything about it.
+
+
+### Main branch
+[![Windows](https://github.com/GloryOfNight/clang-format-all/actions/workflows/windows.yml/badge.svg)](https://github.com/GloryOfNight/clang-format-all/actions/workflows/windows.yml)
+[![Linux](https://github.com/GloryOfNight/clang-format-all/actions/workflows/linux.yml/badge.svg)](https://github.com/GloryOfNight/clang-format-all/actions/workflows/linux.yml)

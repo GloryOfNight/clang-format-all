@@ -1,0 +1,25 @@
+name: Builds
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  windows:
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Install tools
+      run: |
+        choco install cmake
+        choco install ninja
+        choco install llvm
+
+    - name: Configure and build
+      run: |
+        cmake --preset win64-release
+        cmake --build build

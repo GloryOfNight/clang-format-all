@@ -1,6 +1,5 @@
 #include "exit_codes.hxx"
-#include "files_collector.hxx"
-#include "files_formatter.hxx"
+#include "files_utils.hxx"
 #include "log.hxx"
 #include "statics.hxx"
 
@@ -17,10 +16,10 @@
 #include <thread>
 #include <vector>
 
-void handleAbort(int sig);
+void handleAbort(int sig); // handle abort signal from terminal or system
 
-void parseArgs(int argc, char* argv[]);
-void parseEnvp(char* envp[]);
+void parseArgs(int argc, char* argv[]); // parse argument list
+void parseEnvp(char* envp[]);			// look and parse environment variables we could use
 
 int main(int argc, char* argv[], char* envp[])
 {
@@ -45,11 +44,11 @@ int main(int argc, char* argv[], char* envp[])
 		return 0;
 	}
 
-	if (logUseDisabled)
+	if (logPrintNone)
 	{
 		logLevel = DISABLED;
 	}
-	else if (logUseVerbose)
+	else if (logPrintVerbose)
 	{
 		logLevel = VERBOSE;
 	}
@@ -69,11 +68,6 @@ int main(int argc, char* argv[], char* envp[])
 
 	if (!formatExecPath.empty())
 	{
-		if (formatExecPath.is_relative())
-		{
-			formatExecPath = std::filesystem::absolute(formatExecPath);
-		}
-
 		if (!std::filesystem::is_regular_file(formatExecPath))
 		{
 			log(ERROR, "Not a file: %s", formatExecPath.generic_string().data());
@@ -90,10 +84,20 @@ int main(int argc, char* argv[], char* envp[])
 		formatExecPath = std::filesystem::path(std::string(llvm) + "/bin/clang-format" + exeStem);
 		if (!std::filesystem::is_regular_file(formatExecPath))
 		{
-			log(ERROR, "Clang-format executable not found, could not proceed.");
-			return RET_CLANG_FORMAT_EXEC_NOT_FOUND;
+			formatExecPath = std::filesystem::path(std::string("clang-format") + exeStem);
+			if (!std::filesystem::is_regular_file(formatExecPath))
+			{
+				log(ERROR, "Clang-format executable not found, could not proceed.");
+				return RET_CLANG_FORMAT_EXEC_NOT_FOUND;
+			}
 		}
 	}
+
+	if (formatExecPath.is_relative())
+	{
+		formatExecPath = std::filesystem::absolute(formatExecPath);
+	}
+
 	log(DISPLAY, "Using clang-format: %s", formatExecPath.generic_string().data());
 	log(DISPLAY, "Formatting directory: %s", sourceDir.generic_string().data());
 	for (auto& igPath : ignorePaths)
@@ -109,7 +113,7 @@ int main(int argc, char* argv[], char* envp[])
 		}
 	}
 
-	log(DISPLAY, "Looking for formatable files . . .");
+	log(DISPLAY, "Looking for formattable files . . .");
 	auto filesFuture = std::async(collectFilepaths, sourceDir, std::move(ignorePaths));
 
 	while (1)
@@ -153,12 +157,20 @@ void parseArgs(int argc, char* argv[])
 	{
 		const std::string_view arg = argv[i];
 
-		const auto res = std::find_if(std::begin(args), std::end(args), [&arg](const val_ref& val)
+		// find if argument listed in args
+		const auto found_arg = std::find_if(std::begin(args), std::end(args), [&arg](const val_ref& val)
 			{ return arg == val.name; });
 
-		if (res != std::end(args))
+		// some arguments doesn't need options and some does
+		// we sort it out by separation bool and non-bool arguments
+		// those arguments that are bool, would be just set true (no options required)
+		// for others on next iteration, next value of arg (unless it is a argument) would be their option
+		// option would be parsed into one of the possible types of prev_arg
+		// for options that are array type, parsing will stop when new argument found or end of list
+
+		if (found_arg != std::end(args))
 		{
-			prev_arg = &(*res);
+			prev_arg = &(*found_arg);
 			if (auto val = prev_arg->to<bool>())
 			{
 				*val = true;
@@ -181,6 +193,14 @@ void parseArgs(int argc, char* argv[])
 			{
 				val->push_back(arg);
 			}
+			else
+			{
+				log(ERROR, "Failed parse argument: %s. Type not supported: %s", prev_arg, prev_arg->type.name());
+			}
+		}
+		else
+		{
+			log(ERROR, "Unknown argument: %s", arg);
 		}
 	}
 }
@@ -192,15 +212,24 @@ void parseEnvp(char* envp[])
 		const std::string_view env = envp[i];
 		const std::string_view env_name = env.substr(0, env.find_first_of('='));
 
-		const auto res = std::find_if(std::begin(env_vars), std::end(env_vars), [&env_name](const val_ref& val)
+		// find environment variables that we might need
+		const auto found_env = std::find_if(std::begin(env_vars), std::end(env_vars), [&env_name](const val_ref& val)
 			{ return val.name == env_name; });
 
-		if (res != std::end(env_vars))
+		// if env variable found
+		// separate variable from it's contents
+		// check if env_var we found are supported type
+		// save contents to env
+		if (found_env != std::end(env_vars))
 		{
 			const std::string_view env_value = env.substr(env.find_first_of('=') + 1);
-			if (auto val = res->to<std::string_view>())
+			if (auto val = found_env->to<std::string_view>())
 			{
 				*val = env_value;
+			}
+			else
+			{
+				log(ERROR, "Failed parse environment variable: %s. Type not supported: %s", found_env, found_env->type.name());
 			}
 		}
 	}

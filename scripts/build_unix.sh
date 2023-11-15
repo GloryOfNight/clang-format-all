@@ -1,1 +1,0 @@
-cmake --preset linux64-release && cmake --build build && cmake --install build

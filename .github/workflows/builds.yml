@@ -6,10 +6,6 @@ on:
   pull_request:
     branches: [ main ]
 
-env:
-  # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
-  BUILD_TYPE: Release
-
 jobs:
   windows:
     runs-on: windows-latest
@@ -17,8 +13,16 @@ jobs:
     steps:
     - uses: actions/checkout@v2
 
-    - name: Run build script
-      run: ./scripts/build_win.bat
+    - name: Install tools
+      run: |
+        choco install cmake
+        choco install ninja
+        choco install llvm
+
+    - name: Configure and build
+      run: |
+        cmake --preset win64-release
+        cmake --build build
       
       
   unix:
@@ -27,8 +31,17 @@ jobs:
     steps:
     - uses: actions/checkout@v2
 
-    - name: Install libs
-      run: sudo apt install libtbb-dev
+    - name: Install tools
+      run: |
+       sudo apt-get update
+       sudo apt-get install -y cmake
+       sudo apt-get install -y clang
+       sudo apt-get install -y ninja-build
 
-    - name: Run build script
-      run: sh ./scripts/build_unix.sh
+    - name: Install libs
+      run: sudo apt-get install -y libtbb-dev
+
+    - name: Configure and build
+      run: |
+        cmake --preset linux64-release
+        cmake --build build

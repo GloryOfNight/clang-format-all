@@ -1,4 +1,4 @@
-name: Builds
+name: Linux
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
     branches: [ main ]
 
 jobs:      
-  unix:
+  linux:
     runs-on: ubuntu-latest
 
     steps:

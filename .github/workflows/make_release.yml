@@ -33,5 +33,6 @@ jobs:
     name: Build and upload Linux
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v2
       - uses: ./.github/workflows/linux.yml
 

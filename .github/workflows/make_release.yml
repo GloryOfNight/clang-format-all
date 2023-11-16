@@ -32,6 +32,4 @@ jobs:
   build_linux:
     needs: create_release
     uses: ./.github/workflows/linux.yml
-    with:
-      upload_url: ${{ steps.create_release.outputs.upload_url }}
 

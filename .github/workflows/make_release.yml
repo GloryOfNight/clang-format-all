@@ -1,7 +1,7 @@
 name: Make release
 
 on:
-  workflow_call:
+  workflow_dispatch:
     inputs:
       tag:
         description: 'A version tag'

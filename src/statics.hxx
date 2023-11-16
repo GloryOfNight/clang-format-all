@@ -10,16 +10,16 @@
 struct val_ref // helper struct to improve workflow for command line arguments
 {
 	template <typename T>
-	constexpr val_ref(const std::string_view& inName, const std::string_view& inNote, T& inValue)
+	constexpr val_ref(const std::string_view& inName, T& inValue, const std::string_view& inNoteHelp)
 		: name{inName}
-		, note{inNote}
+		, note_help{inNoteHelp}
 		, value{&inValue}
 		, type{typeid(T)}
 	{
 	}
 
 	std::string_view name;
-	std::string_view note;
+	std::string_view note_help;
 	void* value;
 	const std::type_info& type;
 
@@ -40,13 +40,13 @@ static std::vector<std::filesystem::path> ignorePaths{}; // paths to ignore with
 // clang-format off
 static constexpr auto args = std::array
 {
-	val_ref{"--help", "print help", printHelp},
-	val_ref{"--no-logs", "disable logs (might improve performance slightly)", logPrintNone},
-	val_ref{"--verbose", "enable verbose logs", logPrintVerbose},
-	val_ref{"-S", "source directory to format", sourceDir},
-	val_ref{"-E", "clang-format executable path", formatExecPath},
-	val_ref{"-I", "space separated list of paths to ignore relative to [-S]", ignorePaths},
-	val_ref{"-C", "additional command-line arguments for clang-format executable", formatCommands}
+	val_ref{"--help", printHelp,			"--help                         = print help" },
+	val_ref{"--no-logs", logPrintNone,		"--no-logs                      = disable logs (might improve performance slightly)" },
+	val_ref{"--verbose", logPrintVerbose,	"--verbose                      = enable verbose logs" },
+	val_ref{"-S", sourceDir,				"-S <path-to-source>            = directory to format" },
+	val_ref{"-E", formatExecPath,			"-E <path-to-clang-format>      = clang-format executable path" },
+	val_ref{"-I", ignorePaths,				"-I <dirs-list>                 = list of paths to ignore relative to -S" },
+	val_ref{"-C", formatCommands,			"-C <args-clang-format>         = additional command-line arguments for clang-format executable" }
 };
 // clang-format on
 
@@ -54,7 +54,7 @@ static std::string_view llvm;
 // clang-format off
 static constexpr auto env_vars = std::array
 {
-	val_ref{"LLVM","", llvm}
+	val_ref{"LLVM", llvm, ""}
 };
 // clang-format on
 

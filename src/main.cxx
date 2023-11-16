@@ -35,7 +35,10 @@ int main(int argc, char* argv[], char* envp[])
 		log(DISPLAY, "Available arguments list:");
 		for (auto& arg : args)
 		{
-			log(DISPLAY, "\t[%s]   %s", arg.name.data(), arg.note.data());
+			if (arg.note_help.size() == 0)
+				continue;
+
+			log(DISPLAY, "%s", arg.note_help.data());
 		}
 
 		log(DISPLAY, "\nSource code page: https://github.com/GloryOfNight/clang-format-all.git");
@@ -200,7 +203,10 @@ void parseArgs(int argc, char* argv[])
 		}
 		else
 		{
-			log(ERROR, "Unknown argument: %s", arg);
+			if (arg.ends_with("clang-format-all") || arg.ends_with("clang-format-all.exe"))
+				continue;
+
+			log(ERROR, "Unknown argument: %s", arg.data());
 		}
 	}
 }
@@ -216,10 +222,10 @@ void parseEnvp(char* envp[])
 		const auto found_env = std::find_if(std::begin(env_vars), std::end(env_vars), [&env_name](const val_ref& val)
 			{ return val.name == env_name; });
 
-		// if env variable found
-		// separate variable from it's contents
-		// check if env_var we found are supported type
-		// save contents to env
+		// if found_env variable found
+		// separate env variable from it's contents
+		// check if found_env are supported type
+		// save contents to found_env
 		if (found_env != std::end(env_vars))
 		{
 			const std::string_view env_value = env.substr(env.find_first_of('=') + 1);

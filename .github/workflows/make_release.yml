@@ -32,10 +32,19 @@ jobs:
           prerelease: false
 
 
-  build_linux:
+  release_linux_artifact:
+    name: Build and upload Linux binary
     needs: create_release
     if: ${{ needs.create_release.outputs.upload_url }}
     uses: ./.github/workflows/linux.yml
+    with:
+        upload_url: ${{ needs.create_release.outputs.upload_url }}
+
+  release_win64_artifact:
+    name: Build and upload Windows binary
+    needs: create_release
+    if: ${{ needs.create_release.outputs.upload_url }}
+    uses: ./.github/workflows/windows.yml
     with:
         upload_url: ${{ needs.create_release.outputs.upload_url }}
 

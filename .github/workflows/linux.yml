@@ -33,9 +33,9 @@ jobs:
         cmake --preset linux64-release
         cmake --build build
 
-    - name: Upload Release Asset
-      if: ${{ inputs.upload_url }}
-      id: upload-release-asset 
+    - name: Upload binary to release (optional)
+      if: ${{ inputs.upload_url != ''}}
+      id: upload-release-binary
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

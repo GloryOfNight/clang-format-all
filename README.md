@@ -8,9 +8,9 @@ There are no special dependencies, project can be easily compiled for Windows an
 Pre-build download available thru [releases](https://github.com/GloryOfNight/clang-format-all/releases) page.
 
 # Build
-On Linux: `sh ./scripts/build_unix.sh` NOTE: you might need to install libtbb for successfull build!
+On Linux: `cmake --preset linux64-release && cmake --build build` NOTE: you might need to install libtbb for successfull build!
 
-On Windows (git bash): `./scripts/build_win.bat`
+On Windows: `cmake --preset win64-release && cmake --build build`
 
 # Options
 - `--help` print help with available arguments list
@@ -29,3 +29,8 @@ example command (git bash, windows):
 If you found this useful, give it a star. Stars, yay ⭐
 
 If you encounter issue, use Issues section above and write everything about it.
+
+
+### Main branch
+[![Windows](https://github.com/GloryOfNight/clang-format-all/actions/workflows/windows.yml/badge.svg)](https://github.com/GloryOfNight/clang-format-all/actions/workflows/windows.yml)
+[![Linux](https://github.com/GloryOfNight/clang-format-all/actions/workflows/linux.yml/badge.svg)](https://github.com/GloryOfNight/clang-format-all/actions/workflows/linux.yml)

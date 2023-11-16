@@ -23,8 +23,7 @@
       },
       "cacheVariables": {
         "CMAKE_C_COMPILER": "clang",
-        "CMAKE_CXX_COMPILER": "clang++",
-        "CMAKE_CXX_STANDARD_LIBRARIES": "libc++"
+        "CMAKE_CXX_COMPILER": "clang++"
       }
     },
     {

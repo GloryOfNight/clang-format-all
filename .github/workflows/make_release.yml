@@ -30,11 +30,8 @@ jobs:
           prerelease: false
 
   build_linux:
-    name: Build and upload Linux
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-
-      - name: Build Linux
-        uses: ./.github/workflows/linux.yml
+    needs: create_release
+    uses: ./.github/workflows/linux.yml
+    with:
+      upload_url: ${{ jobs.create_release.steps.create_release.outputs.upload_url }}
 

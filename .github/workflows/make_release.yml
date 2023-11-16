@@ -33,5 +33,5 @@ jobs:
     name: Build and upload Linux
     runs-on: ubuntu-latest
     steps:
-      - uses: ./.github/workflows/linux
+      - uses: ./.github/workflows/linux.yml
 

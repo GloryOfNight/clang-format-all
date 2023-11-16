@@ -3,7 +3,7 @@ name: Linux
 on:
   workflow_call:
     inputs:
-      upload-url:
+      upload_url:
         required: false
         type: string
   push:
@@ -34,6 +34,7 @@ jobs:
         cmake --build build
 
     - name: Upload binary to release (optional)
+      if: ${{ inputs.upload_url }}
       id: upload-release-binary
       uses: actions/upload-release-asset@v1
       env:

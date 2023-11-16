@@ -2,13 +2,17 @@ name: Linux
 
 on:
   workflow_call:
+    inputs:
+      upload-url:
+        required: false
+        type: string
   push:
     branches: [ main ]
   pull_request:
     branches: [ main ]
 
 jobs:      
-  linux:
+  build:
     runs-on: ubuntu-latest
 
     steps:
@@ -28,3 +32,17 @@ jobs:
       run: |
         cmake --preset linux64-release
         cmake --build build
+
+    - name: Upload Release Asset
+      if: ${{ inputs.upload_url != NULL }}
+      id: upload-release-asset 
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+          upload_url: ${{ inputs.upload_url }}
+          asset_path: build/clang-format-all
+          asset_name: clang-format-all-linux64
+          asset_content_type: application/executable
+  
+    

@@ -6,30 +6,23 @@
 #include <format>
 #include <iostream>
 
-void log(const log_level level, const char* log, ...)
+namespace cf
 {
-	if (level <= log_level::NoLogs)
-		return;
-
-	if (level < logLevel)
-		return;
-
-	va_list list;
-	va_start(list, log);
-	switch (level)
+	template <typename... Args>
+	void log(const log_level level, const std::string_view format, Args... args)
 	{
-	case log_level::Verbose:
-		std::vfprintf(stdout, (std::string(log) + '\n').data(), list);
-		break;
-	case log_level::Display:
-		std::vfprintf(stdout, (std::string(log) + '\n').data(), list);
-		break;
-	case log_level::Error:
-		std::vfprintf(stderr, (std::string(log) + '\n').data(), list);
-		break;
-	default:;
-	}
-	va_end(list);
-}
+		if (level <= log_level::NoLogs || level < logLevel)
+			return;
 
-#define CF_LOG(level, format, ...) log(log_level::level, format, ##__VA_ARGS__);
+		if (level == log_level::Verbose || level == log_level::Display)
+		{
+			std::cout << std::vformat(format, std::make_format_args(std::forward<Args>(args)...)) << std::endl;
+		}
+		else if (level == log_level::Error)
+		{
+			std::cerr << std::vformat(format, std::make_format_args(std::forward<Args>(args)...)) << std::endl;
+		}
+	}
+} // namespace cf
+
+#define CF_LOG(level, format, ...) cf::log(log_level::level, format, ##__VA_ARGS__);

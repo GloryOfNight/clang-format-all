@@ -1,4 +1,3 @@
-#include "files_utils.hxx"
 #include "log.hxx"
 #include "statics.hxx"
 #include "types.hxx"
@@ -16,10 +15,12 @@
 #include <thread>
 #include <vector>
 
-void handleAbort(int sig); // handle abort signal from terminal or system
-
+void handleAbort(int sig);				// handle abort signal from terminal or system
 void parseArgs(int argc, char* argv[]); // parse argument list
 void parseEnvp(char* envp[]);			// look and parse environment variables we could use
+
+std::vector<std::filesystem::path> collectFilepaths(const std::filesystem::path& dir, std::vector<std::filesystem::path>&& ignorePaths); // find and collect all formatable files
+int formatFiles(std::vector<std::filesystem::path>&& files);																			 // format provided files with clang-format
 
 int main(int argc, char* argv[], char* envp[])
 {
@@ -38,7 +39,7 @@ int main(int argc, char* argv[], char* envp[])
 			if (arg.note_help.size() == 0)
 				continue;
 
-			CF_LOG(Display, "%s", arg.note_help.data());
+			CF_LOG(Display, arg.note_help);
 		}
 
 		CF_LOG(Display, "\nSource code page: https://github.com/GloryOfNight/clang-format-all.git");
@@ -60,7 +61,7 @@ int main(int argc, char* argv[], char* envp[])
 	{
 		if (!std::filesystem::is_directory(sourceDir))
 		{
-			CF_LOG(Error, "Not a directory: %s", sourceDir.generic_string().data());
+			CF_LOG(Error, "Not a directory: {0}", sourceDir.generic_string().data());
 			return ret_code::SourceDirNotValid;
 		}
 	}
@@ -73,7 +74,7 @@ int main(int argc, char* argv[], char* envp[])
 	{
 		if (!std::filesystem::is_regular_file(formatExecPath))
 		{
-			CF_LOG(Error, "Not a file: %s", formatExecPath.generic_string().data());
+			CF_LOG(Error, "Not a file: {0}", formatExecPath.generic_string().data());
 			return ret_code::ClangExecArgNotValid;
 		}
 	}
@@ -101,18 +102,18 @@ int main(int argc, char* argv[], char* envp[])
 		formatExecPath = std::filesystem::absolute(formatExecPath);
 	}
 
-	CF_LOG(Display, "Using clang-format: %s", formatExecPath.generic_string().data());
-	CF_LOG(Display, "Formatting directory: %s", sourceDir.generic_string().data());
+	CF_LOG(Display, "Using clang-format: {0}", formatExecPath.generic_string().data());
+	CF_LOG(Display, "Formatting directory: {0}", sourceDir.generic_string().data());
 	for (auto& igPath : ignorePaths)
 	{
 		igPath = sourceDir.generic_string() + "/" + igPath.generic_string();
 		if (!std::filesystem::exists(igPath))
 		{
-			CF_LOG(Error, "Ignore path DO NOT exist: %s", igPath.generic_string().data());
+			CF_LOG(Error, "Ignore path DO NOT exist: {0}", igPath.generic_string().data());
 		}
 		else
 		{
-			CF_LOG(Display, "Ignoring: %s", igPath.generic_string().data());
+			CF_LOG(Display, "Ignoring: {0}", igPath.generic_string().data());
 		}
 	}
 
@@ -143,7 +144,7 @@ int main(int argc, char* argv[], char* envp[])
 	std::cout << "Formatted files: " << currentFiles << " / " << totalFiles << std::endl;
 
 	const int futureExitCode = formatFuture.get();
-	CF_LOG(Display, "Exit code: %i", futureExitCode);
+	CF_LOG(Display, "Exit code: {0}", futureExitCode);
 	return futureExitCode;
 }
 
@@ -198,7 +199,7 @@ void parseArgs(int argc, char* argv[])
 			}
 			else
 			{
-				CF_LOG(Error, "Failed parse argument: %s. Type not supported: %s", prev_arg, prev_arg->type.name());
+				CF_LOG(Error, "Failed parse argument: {0}. Type not supported: {1}", prev_arg->name, prev_arg->type.name());
 			}
 		}
 		else
@@ -206,7 +207,7 @@ void parseArgs(int argc, char* argv[])
 			if (arg.ends_with("clang-format-all") || arg.ends_with("clang-format-all.exe"))
 				continue;
 
-			CF_LOG(Error, "Unknown argument: %s", arg.data());
+			CF_LOG(Error, "Unknown argument: {0}", arg.data());
 		}
 	}
 }
@@ -235,8 +236,82 @@ void parseEnvp(char* envp[])
 			}
 			else
 			{
-				CF_LOG(Error, "Failed parse environment variable: %s. Type not supported: %s", found_env, found_env->type.name());
+				CF_LOG(Error, "Failed parse environment variable: {0}. Type not supported: {1}", found_env->name, found_env->type.name());
 			}
 		}
 	}
+}
+
+std::vector<std::filesystem::path> collectFilepaths(const std::filesystem::path& dir, std::vector<std::filesystem::path>&& ignorePaths)
+{
+	std::vector<std::filesystem::path> files;
+	files.reserve(4096);
+
+	for (const auto& entry : std::filesystem::recursive_directory_iterator(dir))
+	{
+		if (!entry.is_regular_file())
+			continue;
+
+		const auto filePath = entry.path();
+
+		const bool isCxxExtension = std::find(extensions.begin(), extensions.end(), filePath.filename().extension().generic_string()) != extensions.end();
+		if (!isCxxExtension)
+			continue;
+
+		bool isIgnored = false;
+
+		for (auto igDir : ignorePaths)
+		{
+			if (std::filesystem::is_directory(igDir))
+			{
+				const auto igDirStr = igDir.generic_string();
+				auto dirStr = filePath.generic_string();
+				if (const auto pos = dirStr.find_first_of('/', igDirStr.size() - 1); pos != std::string::npos)
+					dirStr.erase(pos);
+				isIgnored = dirStr == igDirStr;
+			}
+			else if (std::filesystem::is_regular_file(igDir) && igDir == filePath)
+			{
+				isIgnored = true;
+			}
+
+			if (isIgnored)
+			{
+				CF_LOG(Verbose, "Ignoring file: {0}", filePath.generic_string().data());
+				break;
+			}
+		}
+
+		if (isIgnored)
+			continue;
+
+		files.push_back(filePath);
+		totalFiles = files.size();
+	}
+	return files;
+}
+
+int formatFiles(std::vector<std::filesystem::path>&& files)
+{
+	std::atomic<int> result = ret_code::Ok;
+
+	const auto lambda = [&result](const std::filesystem::path& path)
+	{
+		if (!abortJob)
+		{
+			const auto baseCommand = std::string('"' + formatExecPath.generic_string() + '"' + " -i " + path.generic_string());
+			const auto fullCommand = baseCommand + " " + formatCommands;
+			const int commandRes = std::system(fullCommand.data());
+			if (commandRes != ret_code::Ok && result == ret_code::Ok)
+			{
+				result = ret_code::ClangFormatError;
+			}
+			++currentFiles;
+		}
+	};
+
+	if (!abortJob)
+		std::for_each(std::execution::par_unseq, files.begin(), files.end(), lambda);
+
+	return result;
 }

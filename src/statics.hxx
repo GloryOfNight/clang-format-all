@@ -1,7 +1,6 @@
 #pragma once
 #include "types.hxx"
 
-
 #include <array>
 #include <atomic>
 #include <filesystem>

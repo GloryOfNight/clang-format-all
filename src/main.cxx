@@ -113,7 +113,7 @@ int main(int argc, char* argv[], char* envp[])
 	CF_LOG(Display, "Using clang-format: {0}", formatExecPath.generic_string());
 
 	CF_LOG(Display, "Check clang-format version");
-	const auto testFormatExecCommandline = formatExecPath.generic_string() + " --version";
+	const auto testFormatExecCommandline = '"' + formatExecPath.generic_string() + '"' + " --version";
 	if (const int result = std::system(testFormatExecCommandline.data()); result != 0)
 	{
 		CF_LOG(Error, "Attempt to call clang-format resulted in return code: {0}", result);

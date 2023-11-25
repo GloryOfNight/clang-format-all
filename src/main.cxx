@@ -130,7 +130,7 @@ int main(int argc, char* argv[], char* envp[])
 	std::cout << "Files to format: " << totalFiles << std::endl;
 
 	log(DISPLAY, "Starting formatting . . .");
-	auto formatFuture = std::async(formatFiles, std::move(filesFuture.get()));
+	auto formatFuture = std::async(formatFiles, filesFuture.get());
 
 	while (1)
 	{

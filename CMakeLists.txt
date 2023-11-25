@@ -1,15 +1,22 @@
-cmake_minimum_required(VERSION 3.23.0)
+cmake_minimum_required(VERSION 3.21.0)
 
-project(clang-format-all)
+project(clang-format-all
+        VERSION 1.4
+        DESCRIPTION "Tool to help reformat directories of C/Cpp files"
+        HOMEPAGE_URL "https://github.com/GloryOfNight/clang-format-all"
+        LANGUAGES CXX C)
+
+include(cmake/ProjectOptions.cmake)
+include(cmake/Sanitizers.cmake)
 
 add_executable(${PROJECT_NAME} "src/main.cxx")
 
-set_target_properties(${PROJECT_NAME} PROPERTIES
-    CXX_STANDARD 20
-    CXX_STANDARD_REQUIRED YES
-    CXX_EXTENSIONS NO
-    EXPORT_COMPILE_COMMANDS TRUE
-)
+enable_sanitizers(${PROJECT_NAME} 
+                    ${ENABLE_SANITIZER_ADDRESS} 
+                    ${ENABLE_SANITIZER_LEAK} 
+                    ${ENABLE_SANITIZER_UNDEFINED} 
+                    ${ENABLE_SANITIZER_THREAD} 
+                    ${ENABLE_SANITIZER_MEMORY})
 
 install(TARGETS ${PROJECT_NAME} RUNTIME DESTINATION "${CMAKE_CURRENT_SOURCE_DIR}/install")
 

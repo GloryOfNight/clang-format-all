@@ -7,7 +7,7 @@
 struct val_ref
 {
 	template <typename T>
-	constexpr val_ref(const std::string_view& inName, T& inValue, const std::string_view& inNoteHelp)
+	constexpr val_ref(const std::string_view inName, T& inValue, const std::string_view inNoteHelp)
 		: name{inName}
 		, note_help{inNoteHelp}
 		, value{&inValue}

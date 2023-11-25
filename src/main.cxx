@@ -13,14 +13,17 @@
 #include <string>
 #include <string_view>
 #include <thread>
+#include <tuple>
 #include <vector>
+
+using pathsArrayTuple = std::tuple<std::vector<std::filesystem::path>, std::vector<std::filesystem::path>>;
 
 void handleAbort(int sig);				// handle abort signal from terminal or system
 void parseArgs(int argc, char* argv[]); // parse argument list
 void parseEnvp(char* envp[]);			// look and parse environment variables we could use
 
-std::vector<std::filesystem::path> collectFilepaths(const std::filesystem::path& dir, std::vector<std::filesystem::path>&& ignorePaths); // find and collect all formatable files
-int formatFiles(std::vector<std::filesystem::path>&& files);																			 // format provided files with clang-format
+pathsArrayTuple collectFilepaths(const std::filesystem::path& dir, const std::vector<std::filesystem::path>& ignorePaths); // find and collect all files that would be ignored and formatted
+int formatFiles(const std::vector<std::filesystem::path>& files);														   // format provided files with clang-format
 
 int main(int argc, char* argv[], char* envp[])
 {
@@ -61,7 +64,7 @@ int main(int argc, char* argv[], char* envp[])
 	{
 		if (!std::filesystem::is_directory(sourceDir))
 		{
-			CF_LOG(Error, "Not a directory: {0}", sourceDir.generic_string().data());
+			CF_LOG(Error, "Not a directory: {0}", sourceDir.generic_string());
 			return ret_code::SourceDirNotValid;
 		}
 	}
@@ -70,78 +73,119 @@ int main(int argc, char* argv[], char* envp[])
 		sourceDir = std::filesystem::current_path();
 	}
 
+	// if clang-format exec path was provided. Try find it there.
+	// otherwise we would try to find clang-format by common paths
 	if (!formatExecPath.empty())
 	{
+		// in case path was relative, convert to absolute.
+		// we want to work with files in abosulute paths
+		formatExecPath = std::filesystem::absolute(formatExecPath);
 		if (!std::filesystem::is_regular_file(formatExecPath))
 		{
-			CF_LOG(Error, "Not a file: {0}", formatExecPath.generic_string().data());
+			CF_LOG(Error, "Not a file: {0}", formatExecPath.generic_string());
 			return ret_code::ClangExecArgNotValid;
 		}
 	}
 	else
 	{
-#if _WINDOWS
-		const char* exeStem = ".exe";
+#if _WIN32
+		const char* exeExtension = ".exe";
 #else
-		const char* exeStem = "";
+		const char* exeExtension = "";
 #endif
-		formatExecPath = std::filesystem::path(std::string(llvm) + "/bin/clang-format" + exeStem);
+
+		formatExecPath = std::filesystem::absolute(std::filesystem::path(std::string(llvm) + "/bin/clang-format" + exeExtension));
 		if (!std::filesystem::is_regular_file(formatExecPath))
 		{
-			formatExecPath = std::filesystem::path(std::string("clang-format") + exeStem);
+			CF_LOG(Verbose, "Looking for clang-format: {0} - failed", formatExecPath.generic_string());
+
+			formatExecPath = std::filesystem::absolute(std::filesystem::path(std::string("clang-format") + exeExtension));
 			if (!std::filesystem::is_regular_file(formatExecPath))
 			{
+				CF_LOG(Verbose, "Looking for clang-format: {0} - failed", formatExecPath.generic_string());
+
 				CF_LOG(Error, "Clang-format executable not found, could not proceed.");
 				return ret_code::ClangExecNotFound;
 			}
 		}
 	}
 
-	if (formatExecPath.is_relative())
+	CF_LOG(Display, "Using clang-format: {0}", formatExecPath.generic_string());
+
+	CF_LOG(Display, "Check clang-format version");
+	const auto testFormatExecCommandline = formatExecPath.generic_string() + " --version";
+	if (const int result = std::system(testFormatExecCommandline.data()); result != 0)
 	{
-		formatExecPath = std::filesystem::absolute(formatExecPath);
+		CF_LOG(Error, "Attempt to call clang-format resulted in return code: {0}", result);
+		return ret_code::ClangExecNotFound;
 	}
 
-	CF_LOG(Display, "Using clang-format: {0}", formatExecPath.generic_string().data());
-	CF_LOG(Display, "Formatting directory: {0}", sourceDir.generic_string().data());
+	CF_LOG(Display, "Formatting directory: {0}", sourceDir.generic_string());
+
+	// log any non-valid ignore paths
 	for (auto& igPath : ignorePaths)
 	{
 		igPath = sourceDir.generic_string() + "/" + igPath.generic_string();
+		igPath = std::filesystem::absolute(igPath);
 		if (!std::filesystem::exists(igPath))
 		{
-			CF_LOG(Error, "Ignore path DO NOT exist: {0}", igPath.generic_string().data());
+			CF_LOG(Error, "Ignore path DOESN'T exist: {0}", igPath.generic_string());
 		}
 		else
 		{
-			CF_LOG(Display, "Ignoring: {0}", igPath.generic_string().data());
+			CF_LOG(Display, "Ignore path: {0}", igPath.generic_string());
 		}
 	}
 
 	CF_LOG(Display, "Looking for formattable files . . .");
-	auto filesFuture = std::async(collectFilepaths, sourceDir, std::move(ignorePaths));
 
+	// create async job of collecting formatable filepaths
+	// while job is doing stuff, fancy print amount of collected files
+	auto filesFuture = std::async(collectFilepaths, sourceDir, ignorePaths);
 	while (1)
 	{
-		std::cout << "Files to format: " << totalFiles << "\r" << std::flush;
+		std::cout << "Files to format: " << totalFilesToFormat << "\r" << std::flush;
 
 		auto status = filesFuture.wait_for(std::chrono::milliseconds(16));
 		if (status == std::future_status::ready)
 			break;
 	}
-	std::cout << "Files to format: " << totalFiles << std::endl;
+	std::cout << "Files to format: " << totalFilesToFormat << std::endl;
+
+	const auto [filesToFormat, ignoredFiles] = filesFuture.get();
+
+	// only for very-verbose logging, print all files that would be ignored and format
+	if (logLevel == log_level::Verbose)
+	{
+		CF_LOG(Verbose, "\n\n######## IGNORED FILES ########");
+		for (const auto& file : ignoredFiles)
+		{
+			CF_LOG(Verbose, "#  {0} - ignored", file.generic_string());
+		}
+		CF_LOG(Verbose, "######## IGNORED FILES END ########\n\n");
+
+		CF_LOG(Verbose, "\n\n######## FILES WAITNING FORMATTING ########");
+		for (const auto& file : filesToFormat)
+		{
+			CF_LOG(Verbose, "#  {0} - waiting format", file.generic_string());
+		}
+		CF_LOG(Verbose, "######## FILES WAITNING FORMATTING END ########\n\n");
+	}
 
 	CF_LOG(Display, "Starting formatting . . .");
-	auto formatFuture = std::async(formatFiles, filesFuture.get());
 
+	// create async job of formatting files collected from previos job
+	// while job formatting files, print amount of files formatted by job
+	auto formatFuture = std::async(formatFiles, filesToFormat);
 	while (1)
 	{
-		std::cout << "Formatted files: " << currentFiles << " / " << totalFiles << "\r" << std::flush;
+		std::cout << "Formatted files: " << currentFiles << " / " << totalFilesToFormat << "\r" << std::flush;
 
 		auto status = formatFuture.wait_for(std::chrono::milliseconds(16));
 		if (status == std::future_status::ready)
 			break;
 	}
-	std::cout << "Formatted files: " << currentFiles << " / " << totalFiles << std::endl;
+	std::cout << "Formatted files: " << currentFiles << " / " << totalFilesToFormat << std::endl;
 
 	const int futureExitCode = formatFuture.get();
 	CF_LOG(Display, "Exit code: {0}", futureExitCode);
@@ -242,56 +286,70 @@ void parseEnvp(char* envp[])
 	}
 }
 
-std::vector<std::filesystem::path> collectFilepaths(const std::filesystem::path& dir, std::vector<std::filesystem::path>&& ignorePaths)
+pathsArrayTuple collectFilepaths(const std::filesystem::path& dir, const std::vector<std::filesystem::path>& ignorePaths)
 {
-	std::vector<std::filesystem::path> files;
-	files.reserve(4096);
+	std::vector<std::filesystem::path> filesToFormat{};
+	filesToFormat.reserve(4096);
+	std::vector<std::filesystem::path> filesToIgnore{};
+	filesToIgnore.reserve(4096);
 
+	// go through all directories
 	for (const auto& entry : std::filesystem::recursive_directory_iterator(dir))
 	{
+		// if entry not a file, continue to next one
 		if (!entry.is_regular_file())
 			continue;
 
-		const auto filePath = entry.path();
-
+		// check if file is C/Cxx one
+		const auto filePath = std::filesystem::absolute(entry.path());
 		const bool isCxxExtension = std::find(extensions.begin(), extensions.end(), filePath.filename().extension().generic_string()) != extensions.end();
 		if (!isCxxExtension)
 			continue;
 
+		// check if ignored paths applied to the file
 		bool isIgnored = false;
-
-		for (auto igDir : ignorePaths)
+		for (const auto& igPath : ignorePaths)
 		{
-			if (std::filesystem::is_directory(igDir))
+			if (std::filesystem::is_directory(igPath))
 			{
-				const auto igDirStr = igDir.generic_string();
-				auto dirStr = filePath.generic_string();
-				if (const auto pos = dirStr.find_first_of('/', igDirStr.size() - 1); pos != std::string::npos)
-					dirStr.erase(pos);
-				isIgnored = dirStr == igDirStr;
+				// igDirStr -> ./include/super/cool
+				// filePathStr -> ./include/super/cool/boi/path/do-not-format.h
+				// ...................................^ strip here
+				// and compare the remaining string with igDirStr
+
+				const auto igDirStr = igPath.generic_string();
+				auto filePathStr = filePath.generic_string();
+				if (const auto pos = filePathStr.find_first_of('/', igDirStr.size() - 1); pos != std::string::npos)
+					filePathStr.erase(pos);
+
+				isIgnored = filePathStr == igDirStr;
 			}
-			else if (std::filesystem::is_regular_file(igDir) && igDir == filePath)
+			else if (std::filesystem::is_regular_file(igPath) && igPath == filePath)
 			{
 				isIgnored = true;
 			}
 
 			if (isIgnored)
 			{
-				CF_LOG(Verbose, "Ignoring file: {0}", filePath.generic_string().data());
 				break;
 			}
 		}
 
 		if (isIgnored)
+		{
+			filesToIgnore.push_back(filePath);
 			continue;
+		}
 
-		files.push_back(filePath);
-		totalFiles = files.size();
+		// we collected a file to run clang-format on!
+		filesToFormat.push_back(filePath);
+		totalFilesToFormat = filesToFormat.size();
 	}
-	return files;
+
+	return pathsArrayTuple{filesToFormat, filesToIgnore};
 }
 
-int formatFiles(std::vector<std::filesystem::path>&& files)
+int formatFiles(const std::vector<std::filesystem::path>& files)
 {
 	std::atomic<int> result = ret_code::Ok;
 
@@ -299,10 +357,13 @@ int formatFiles(std::vector<std::filesystem::path>&& files)
 	{
 		if (!abortJob)
 		{
+			// -i is nessesery command for clang-format to run on a file
+			// we allow use of additional commandline arguments that
 			const auto baseCommand = std::string('"' + formatExecPath.generic_string() + '"' + " -i " + path.generic_string());
 			const auto fullCommand = baseCommand + " " + formatCommands;
 			const int commandRes = std::system(fullCommand.data());
-			if (commandRes != ret_code::Ok && result == ret_code::Ok)
+			// if executed command returned non-zero value, it means something went wrong with it.
+			if (commandRes != 0)
 			{
 				result = ret_code::ClangFormatError;
 			}
@@ -310,6 +371,7 @@ int formatFiles(std::vector<std::filesystem::path>&& files)
 		}
 	};
 
+	// go through all provided filepaths in parallel and execute lambda on each one
 	if (!abortJob)
 		std::for_each(std::execution::par_unseq, files.begin(), files.end(), lambda);
 

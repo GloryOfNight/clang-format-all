@@ -14,13 +14,13 @@ namespace cf
 		if (level <= log_level::NoLogs || level < logLevel)
 			return;
 
-		if (level == log_level::Verbose || level == log_level::Display)
-		{
-			std::cout << std::vformat(format, std::make_format_args(std::forward<Args>(args)...)) << std::endl;
-		}
-		else if (level == log_level::Error)
+		if (level == log_level::Error)
 		{
 			std::cerr << std::vformat(format, std::make_format_args(std::forward<Args>(args)...)) << std::endl;
+		}
+		else [[likely]]
+		{
+			std::cout << std::vformat(format, std::make_format_args(std::forward<Args>(args)...)) << std::endl;
 		}
 	}
 } // namespace cf

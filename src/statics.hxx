@@ -40,5 +40,5 @@ static constexpr std::array<std::string_view, 6> extensions = {".cpp", ".cxx", "
 static log_level logLevel = log_level::Display;
 
 static std::atomic<bool> abortJob = false;	 // either job thread should be aborted or not
-static std::atomic<size_t> totalFiles = 0;	 // total amount of files to run clang-format on
+static std::atomic<size_t> totalFilesToFormat = 0;	 // total amount of files to run clang-format on
 static std::atomic<size_t> currentFiles = 0; // current amount of files that was formatted by clang-format

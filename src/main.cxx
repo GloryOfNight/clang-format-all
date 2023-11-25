@@ -124,7 +124,7 @@ int main(int argc, char* argv[], char* envp[])
 	{
 		std::cout << "Files to format: " << totalFiles << "\r" << std::flush;
 
-		auto status = filesFuture.wait_for(std::chrono::milliseconds(1));
+		auto status = filesFuture.wait_for(std::chrono::milliseconds(16));
 		if (status == std::future_status::ready)
 			break;
 	}
@@ -137,7 +137,7 @@ int main(int argc, char* argv[], char* envp[])
 	{
 		std::cout << "Formatted files: " << currentFiles << " / " << totalFiles << "\r" << std::flush;
 
-		auto status = formatFuture.wait_for(std::chrono::milliseconds(150));
+		auto status = formatFuture.wait_for(std::chrono::milliseconds(16));
 		if (status == std::future_status::ready)
 			break;
 	}

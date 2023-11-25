@@ -1,24 +1,14 @@
 #pragma once
+#include "statics.hxx"
+#include "types.hxx"
 
 #include <cstdarg>
+#include <format>
 #include <iostream>
 
-
-enum // log levels
+void log(const log_level level, const char* log, ...)
 {
-	DISABLED = -1,
-	VERBOSE = 0,
-	DISPLAY = 1,
-	ERROR = 2
-};
-
-
-// current log level as well as default
-static int logLevel = DISPLAY;
-
-void log(int level, const char* log, ...)
-{
-	if (logLevel <= DISABLED)
+	if (level <= log_level::NoLogs)
 		return;
 
 	if (level < logLevel)
@@ -28,16 +18,18 @@ void log(int level, const char* log, ...)
 	va_start(list, log);
 	switch (level)
 	{
-	case VERBOSE:
+	case log_level::Verbose:
 		std::vfprintf(stdout, (std::string(log) + '\n').data(), list);
 		break;
-	case DISPLAY:
+	case log_level::Display:
 		std::vfprintf(stdout, (std::string(log) + '\n').data(), list);
 		break;
-	case ERROR:
+	case log_level::Error:
 		std::vfprintf(stderr, (std::string(log) + '\n').data(), list);
 		break;
 	default:;
 	}
 	va_end(list);
 }
+
+#define CF_LOG(level, format, ...) log(log_level::level, format, ##__VA_ARGS__);

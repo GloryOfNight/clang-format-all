@@ -1,7 +1,7 @@
-#include "exit_codes.hxx"
 #include "files_utils.hxx"
 #include "log.hxx"
 #include "statics.hxx"
+#include "types.hxx"
 
 #include <array>
 #include <atomic>
@@ -32,36 +32,36 @@ int main(int argc, char* argv[], char* envp[])
 
 	if (printHelp)
 	{
-		log(DISPLAY, "Available arguments list:");
+		CF_LOG(Display, "Available arguments list:");
 		for (auto& arg : args)
 		{
 			if (arg.note_help.size() == 0)
 				continue;
 
-			log(DISPLAY, "%s", arg.note_help.data());
+			CF_LOG(Display, "%s", arg.note_help.data());
 		}
 
-		log(DISPLAY, "\nSource code page: https://github.com/GloryOfNight/clang-format-all.git");
-		log(DISPLAY, "MIT License - Copyright (c) 2022 Sergey Dikiy");
+		CF_LOG(Display, "\nSource code page: https://github.com/GloryOfNight/clang-format-all.git");
+		CF_LOG(Display, "MIT License - Copyright (c) 2022 Sergey Dikiy");
 
 		return 0;
 	}
 
 	if (logPrintNone)
 	{
-		logLevel = DISABLED;
+		logLevel = log_level::NoLogs;
 	}
 	else if (logPrintVerbose)
 	{
-		logLevel = VERBOSE;
+		logLevel = log_level::Verbose;
 	}
 
 	if (!sourceDir.empty())
 	{
 		if (!std::filesystem::is_directory(sourceDir))
 		{
-			log(ERROR, "Not a directory: %s", sourceDir.generic_string().data());
-			return RET_ARG_SOURCE_NOT_VALID;
+			CF_LOG(Error, "Not a directory: %s", sourceDir.generic_string().data());
+			return ret_code::SourceDirNotValid;
 		}
 	}
 	else
@@ -73,8 +73,8 @@ int main(int argc, char* argv[], char* envp[])
 	{
 		if (!std::filesystem::is_regular_file(formatExecPath))
 		{
-			log(ERROR, "Not a file: %s", formatExecPath.generic_string().data());
-			return RET_ARG_EXEC_NOT_VALID;
+			CF_LOG(Error, "Not a file: %s", formatExecPath.generic_string().data());
+			return ret_code::ClangExecArgNotValid;
 		}
 	}
 	else
@@ -90,8 +90,8 @@ int main(int argc, char* argv[], char* envp[])
 			formatExecPath = std::filesystem::path(std::string("clang-format") + exeStem);
 			if (!std::filesystem::is_regular_file(formatExecPath))
 			{
-				log(ERROR, "Clang-format executable not found, could not proceed.");
-				return RET_CLANG_FORMAT_EXEC_NOT_FOUND;
+				CF_LOG(Error, "Clang-format executable not found, could not proceed.");
+				return ret_code::ClangExecNotFound;
 			}
 		}
 	}
@@ -101,22 +101,22 @@ int main(int argc, char* argv[], char* envp[])
 		formatExecPath = std::filesystem::absolute(formatExecPath);
 	}
 
-	log(DISPLAY, "Using clang-format: %s", formatExecPath.generic_string().data());
-	log(DISPLAY, "Formatting directory: %s", sourceDir.generic_string().data());
+	CF_LOG(Display, "Using clang-format: %s", formatExecPath.generic_string().data());
+	CF_LOG(Display, "Formatting directory: %s", sourceDir.generic_string().data());
 	for (auto& igPath : ignorePaths)
 	{
 		igPath = sourceDir.generic_string() + "/" + igPath.generic_string();
 		if (!std::filesystem::exists(igPath))
 		{
-			log(ERROR, "Ignore path DO NOT exist: %s", igPath.generic_string().data());
+			CF_LOG(Error, "Ignore path DO NOT exist: %s", igPath.generic_string().data());
 		}
 		else
 		{
-			log(DISPLAY, "Ignoring: %s", igPath.generic_string().data());
+			CF_LOG(Display, "Ignoring: %s", igPath.generic_string().data());
 		}
 	}
 
-	log(DISPLAY, "Looking for formattable files . . .");
+	CF_LOG(Display, "Looking for formattable files . . .");
 	auto filesFuture = std::async(collectFilepaths, sourceDir, std::move(ignorePaths));
 
 	while (1)
@@ -129,7 +129,7 @@ int main(int argc, char* argv[], char* envp[])
 	}
 	std::cout << "Files to format: " << totalFiles << std::endl;
 
-	log(DISPLAY, "Starting formatting . . .");
+	CF_LOG(Display, "Starting formatting . . .");
 	auto formatFuture = std::async(formatFiles, filesFuture.get());
 
 	while (1)
@@ -143,14 +143,14 @@ int main(int argc, char* argv[], char* envp[])
 	std::cout << "Formatted files: " << currentFiles << " / " << totalFiles << std::endl;
 
 	const int futureExitCode = formatFuture.get();
-	log(DISPLAY, "Exit code: %i", futureExitCode);
+	CF_LOG(Display, "Exit code: %i", futureExitCode);
 	return futureExitCode;
 }
 
 void handleAbort(int sig)
 {
 	abortJob = true;
-	log(ERROR, "\nABORT RECEIVED\n");
+	CF_LOG(Error, "\nABORT RECEIVED\n");
 }
 
 void parseArgs(int argc, char* argv[])
@@ -198,7 +198,7 @@ void parseArgs(int argc, char* argv[])
 			}
 			else
 			{
-				log(ERROR, "Failed parse argument: %s. Type not supported: %s", prev_arg, prev_arg->type.name());
+				CF_LOG(Error, "Failed parse argument: %s. Type not supported: %s", prev_arg, prev_arg->type.name());
 			}
 		}
 		else
@@ -206,7 +206,7 @@ void parseArgs(int argc, char* argv[])
 			if (arg.ends_with("clang-format-all") || arg.ends_with("clang-format-all.exe"))
 				continue;
 
-			log(ERROR, "Unknown argument: %s", arg.data());
+			CF_LOG(Error, "Unknown argument: %s", arg.data());
 		}
 	}
 }
@@ -235,7 +235,7 @@ void parseEnvp(char* envp[])
 			}
 			else
 			{
-				log(ERROR, "Failed parse environment variable: %s. Type not supported: %s", found_env, found_env->type.name());
+				CF_LOG(Error, "Failed parse environment variable: %s. Type not supported: %s", found_env, found_env->type.name());
 			}
 		}
 	}

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "exit_codes.hxx"
+#include "log.hxx"
 #include "statics.hxx"
 
 #include <algorithm>
@@ -44,7 +44,7 @@ std::vector<std::filesystem::path> collectFilepaths(const std::filesystem::path&
 
 			if (isIgnored)
 			{
-				log(VERBOSE, "Ignoring file: %s", filePath.generic_string().data());
+				CF_LOG(Verbose, "Ignoring file: %s", filePath.generic_string().data());
 				break;
 			}
 		}
@@ -60,7 +60,7 @@ std::vector<std::filesystem::path> collectFilepaths(const std::filesystem::path&
 
 int formatFiles(std::vector<std::filesystem::path>&& files)
 {
-	std::atomic<int> result = RET_OK;
+	std::atomic<int> result = ret_code::Ok;
 
 	const auto lambda = [&result](const std::filesystem::path& path)
 	{
@@ -69,9 +69,9 @@ int formatFiles(std::vector<std::filesystem::path>&& files)
 			const auto baseCommand = std::string('"' + formatExecPath.generic_string() + '"' + " -i " + path.generic_string());
 			const auto fullCommand = baseCommand + " " + formatCommands;
 			const int commandRes = std::system(fullCommand.data());
-			if (commandRes != RET_OK && result == RET_OK)
+			if (commandRes != ret_code::Ok && result == ret_code::Ok)
 			{
-				result = RET_CLANG_FORMAT_ERROR;
+				result = ret_code::ClangFormatError;
 			}
 			++currentFiles;
 		}

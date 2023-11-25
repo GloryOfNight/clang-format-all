@@ -1,34 +1,12 @@
 #pragma once
-#include "log.hxx"
+#include "types.hxx"
+
 
 #include <array>
 #include <atomic>
 #include <filesystem>
 #include <string>
 #include <vector>
-
-struct val_ref // helper struct to improve workflow for command line arguments
-{
-	template <typename T>
-	constexpr val_ref(const std::string_view& inName, T& inValue, const std::string_view& inNoteHelp)
-		: name{inName}
-		, note_help{inNoteHelp}
-		, value{&inValue}
-		, type{typeid(T)}
-	{
-	}
-
-	std::string_view name;
-	std::string_view note_help;
-	void* value;
-	const std::type_info& type;
-
-	template <typename T>
-	T* to() const
-	{
-		return type == typeid(T) ? reinterpret_cast<T*>(value) : nullptr;
-	}
-};
 
 static bool printHelp;									 // when true - prints help and exits
 static bool logPrintNone;								 // when true - disable all logs
@@ -59,6 +37,8 @@ static constexpr auto env_vars = std::array
 // clang-format on
 
 static constexpr std::array<std::string_view, 6> extensions = {".cpp", ".cxx", ".c", ".h", ".hxx", ".hpp"};
+
+static log_level logLevel = log_level::Display;
 
 static std::atomic<bool> abortJob = false;	 // either job thread should be aborted or not
 static std::atomic<size_t> totalFiles = 0;	 // total amount of files to run clang-format on

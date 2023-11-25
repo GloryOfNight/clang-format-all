@@ -8,6 +8,7 @@ project(clang-format-all
 
 include(cmake/ProjectOptions.cmake)
 include(cmake/Sanitizers.cmake)
+include(cmake/PreventInSourceBuilds.cmake)
 
 add_executable(${PROJECT_NAME} "src/main.cxx")
 
@@ -18,7 +19,7 @@ enable_sanitizers(${PROJECT_NAME}
                     ${ENABLE_SANITIZER_THREAD} 
                     ${ENABLE_SANITIZER_MEMORY})
 
-install(TARGETS ${PROJECT_NAME} RUNTIME DESTINATION "${CMAKE_CURRENT_SOURCE_DIR}/install")
+install(TARGETS ${PROJECT_NAME})
 
 enable_testing()
 add_test(NAME HelloHelp COMMAND $<TARGET_FILE:${PROJECT_NAME}> --help WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR})

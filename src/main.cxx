@@ -72,6 +72,8 @@ int main(int argc, char* argv[], char* envp[])
 	{
 		sourceDir = std::filesystem::current_path();
 	}
+	// use abosolute paths
+	sourceDir = std::filesystem::absolute(sourceDir);
 
 	// if clang-format exec path was provided. Try find it there.
 	// otherwise we would try to find clang-format by common paths

@@ -22,7 +22,7 @@ void handleAbort(int sig);				// handle abort signal from terminal or system
 void parseArgs(int argc, char* argv[]); // parse argument list
 void parseEnvp(char* envp[]);			// look and parse environment variables we could use
 
-pathsArrayTuple collectFilepaths(const std::filesystem::path& dir, const std::vector<std::filesystem::path>& ignorePaths); // find and collect all files that would be ignored and formatted
+pathsArrayTuple collectFilepaths(const std::filesystem::path& dir, const std::vector<std::filesystem::path>& ignorePaths); // find and collect all files that would be formatted and ignored
 int formatFiles(const std::vector<std::filesystem::path>& files);														   // format provided files with clang-format
 
 int main(int argc, char* argv[], char* envp[])
@@ -45,7 +45,7 @@ int main(int argc, char* argv[], char* envp[])
 			CF_LOG(Display, arg.note_help);
 		}
 
-		CF_LOG(Display, "\nSource code page: https://github.com/GloryOfNight/clang-format-all.git");
+		CF_LOG(Display, "\nSource code page: https://github.com/GloryOfNight/clang-format-all");
 		CF_LOG(Display, "MIT License - Copyright (c) 2022 Sergey Dikiy");
 
 		return 0;
@@ -139,7 +139,7 @@ int main(int argc, char* argv[], char* envp[])
 
 	CF_LOG(Display, "Looking for formattable files . . .");
 
-	// create async job of collecting formatable filepaths
+	// create async job of collecting formattable filepaths
 	// while job is doing stuff, fancy print amount of collected files
 	auto filesFuture = std::async(collectFilepaths, sourceDir, ignorePaths);
 	while (1)
@@ -150,9 +150,10 @@ int main(int argc, char* argv[], char* envp[])
 		if (status == std::future_status::ready)
 			break;
 	}
-	std::cout << "Files to format: " << totalFilesToFormat << std::endl;
-
 	const auto [filesToFormat, ignoredFiles] = filesFuture.get();
+
+	std::cout << "Files to format: " << filesToFormat.size() << std::endl;
+	std::cout << "Ignored files: " << ignoredFiles.size() << std::endl;
 
 	// only for very-verbose logging, print all files that would be ignored and format
 	if (logLevel == log_level::Verbose)
@@ -174,7 +175,7 @@ int main(int argc, char* argv[], char* envp[])
 
 	CF_LOG(Display, "Starting formatting . . .");
 
-	// create async job of formatting files collected from previos job
+	// create async job of formatting files collected from previous job
 	// while job formatting files, print amount of files formatted by job
 	auto formatFuture = std::async(formatFiles, filesToFormat);
 	while (1)
@@ -357,7 +358,7 @@ int formatFiles(const std::vector<std::filesystem::path>& files)
 	{
 		if (!abortJob)
 		{
-			// -i is nessesery command for clang-format to run on a file
+			// -i is necessary command for clang-format to run on a file
 			// we allow use of additional commandline arguments that
 			const auto baseCommand = std::string('"' + formatExecPath.generic_string() + '"' + " -i " + path.generic_string());
 			const auto fullCommand = baseCommand + " " + formatCommands;

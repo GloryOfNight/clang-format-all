@@ -5,6 +5,7 @@
 #include <cstdarg>
 #include <format>
 #include <iostream>
+#include <string_view>
 
 namespace cf
 {
@@ -16,11 +17,11 @@ namespace cf
 
 		if (level == log_level::Error)
 		{
-			std::cerr << std::vformat(format, std::make_format_args(std::forward<Args>(args)...)) << std::endl;
+			std::cerr << std::vformat(format, std::make_format_args(args...)) << std::endl;
 		}
 		else [[likely]]
 		{
-			std::cout << std::vformat(format, std::make_format_args(std::forward<Args>(args)...)) << std::endl;
+			std::cout << std::vformat(format, std::make_format_args(args...)) << std::endl;
 		}
 	}
 } // namespace cf

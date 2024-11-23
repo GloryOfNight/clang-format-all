@@ -9,6 +9,8 @@ if (NOT DEFINED CMAKE_BUILD_TYPE AND NOT GENERATOR_IS_MULTI_CONFIG)
   message(STATUS "Settings up default CMAKE_BUILD_TYPE to ${CMAKE_BUILD_TYPE}")
 endif()
 
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 option(ENABLE_SANITIZER_ADDRESS "Enable address sanitizer" OFF)
 option(ENABLE_SANITIZER_LEAK "Enable leak sanitizer" OFF)
 option(ENABLE_SANITIZER_UNDEFINED "Enable undefined behavior sanitizer" OFF)

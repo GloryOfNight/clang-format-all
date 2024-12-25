@@ -1,3 +1,34 @@
+> [!WARNING]
+> That project lost its purpose since clang-format introduced .clang-format-ignore and --files commandline option. You can find better way of doing things below.
+>
+> I hope even so, you might find some useful stuff in that repo to help you out.
+
+> [!NOTE]
+> Project served it's time. If you want to perform formatting of many files you can do it better with clang-format right now using scripts and files. Sample just below. 
+
+Script gathers all .cpp and .h files, put them into files.temp and feeds it to clang-format that does good job of reformating them.
+```bash
+### clang-format-all.sh ###
+#!/bin/bash
+
+# Create a temporary file to store the list of .cpp and .h files
+temp_file="files.temp"
+
+# Find all .cpp and .h files recursively from the current directory
+find . -type f \( -name "*.cpp" -o -name "*.h" \) > "$temp_file"
+
+# Format all .cpp and .h files
+clang-format --files files.temp -i
+
+# Remove the temporary file
+rm -f "$temp_file"
+```
+
+If you need to ignore files, consider using [.clang-format-ignore](https://clang.llvm.org/docs/ClangFormat.html#clang-format-ignore). Additionally you can disable formatting for centain directories by placing .clang-format with [DisableFormat](https://clang.llvm.org/docs/ClangFormatStyleOptions.html#disableformat) options turned on there.
+
+> [!NOTE]
+> Old project description below
+
 # Introduction
 This tool will help you reformat C++ project directory (or any directory containing Cxx files) using clang-format in fast multithreaded manor.
 Typical scripts are not very effective at reformatting huge amounts of files at one go. This tool solves the issue by using features of C++17-20 standard.
